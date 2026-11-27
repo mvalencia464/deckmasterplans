@@ -1,0 +1,2724 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>DeckCraft Pro v2 — Alaska & Custom Geometry Edition</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          },
+          colors: {
+            surface: {
+              950: '#070a10',
+              900: '#0c111d',
+              850: '#131b2c',
+              800: '#1b263b'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #070a10;
+      color: #e2e8f0;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+    .glass-pill {
+      background: rgba(12, 17, 29, 0.84);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+    }
+    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scroll::-webkit-scrollbar-track { background: #0c111d; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #26344d; border-radius: 999px; }
+    .custom-scroll::-webkit-scrollbar-thumb:hover { background: #38bdf8; }
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 5px;
+      background: #1b263b;
+      border-radius: 999px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: #38bdf8;
+      cursor: pointer;
+      border: 2px solid #070a10;
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.35);
+    }
+    @media print {
+      body { background: #ffffff !important; color: #000000 !important; overflow: visible !important; }
+      #app-header, #sidebar, #view-3d, #view-editor, #view-materials, #toast-container, .no-print { display: none !important; }
+      #view-blueprint { display: flex !important; position: static !important; width: 100% !important; height: auto !important; padding: 0 !important; }
+      #blueprint-canvas { width: 100% !important; height: auto !important; border: none !important; }
+    }
+  </style>
+</head>
+<body class="flex flex-col h-screen w-screen overflow-hidden bg-surface-950 text-slate-100 select-none">
+
+  <!-- TOP NAVIGATION BAR -->
+  <header id="app-header" class="h-14 shrink-0 bg-surface-900 border-b border-slate-800/90 px-3 sm:px-4 flex items-center justify-between gap-2 z-30">
+    <!-- Brand -->
+    <div class="flex items-center gap-2.5 min-w-0">
+      <button id="btn-toggle-sidebar" class="lg:hidden p-2 rounded-lg bg-surface-850 border border-slate-700 text-slate-300 hover:text-white" title="Toggle Controls">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 shrink-0">
+        <svg class="w-5 h-5 text-slate-950" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7l9-4 9 4-9 4-9-4zm0 5l9 4 9-4m-18 5l9 4 9-4"/></svg>
+      </div>
+      <div class="truncate">
+        <div class="flex items-center gap-1.5">
+          <h1 class="text-sm font-bold tracking-tight text-white truncate">DeckCraft Pro</h1>
+          <span class="hidden sm:inline-block text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">v2 ALASKA</span>
+        </div>
+        <p class="text-[10px] text-slate-400 hidden md:block">3D Architectural Studio • Helical Piles • IRC Permit Plans</p>
+      </div>
+    </div>
+
+    <!-- Primary Workspace View Switcher -->
+    <nav class="flex items-center bg-surface-950 p-1 rounded-xl border border-slate-800 gap-0.5 overflow-x-auto">
+      <button data-view="3d" class="view-tab px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">3D Studio</button>
+      <button data-view="editor" class="view-tab px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap text-slate-400 hover:text-white border border-transparent">2D Editor</button>
+      <button data-view="split" class="view-tab hidden md:inline-flex px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap text-slate-400 hover:text-white border border-transparent">Split 3D + 2D</button>
+      <button data-view="blueprint" class="view-tab px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap text-slate-400 hover:text-white border border-transparent">Permit Plans</button>
+      <button data-view="materials" class="view-tab px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap text-slate-400 hover:text-white border border-transparent">Materials &amp; Cuts</button>
+    </nav>
+
+    <!-- Quick Metrics & Export -->
+    <div class="flex items-center gap-2 shrink-0">
+      <div class="hidden xl:flex items-center gap-3 px-3 py-1 rounded-xl bg-surface-950 border border-slate-800 text-[11px] font-mono">
+        <span><strong id="hdr-area" class="text-cyan-300">224</strong> <span class="text-slate-500">sf</span></span>
+        <span class="text-slate-700">|</span>
+        <span><strong id="hdr-piles" class="text-amber-300">4</strong> <span class="text-slate-500">piles</span></span>
+        <span class="text-slate-700">|</span>
+        <span><strong id="hdr-cost" class="text-emerald-400">$14,200</strong></span>
+      </div>
+      <button id="btn-export-pdf" class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold text-xs transition shadow-lg shadow-cyan-500/20 flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <span class="hidden sm:inline">Permit PDF</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN WORKSPACE -->
+  <div class="flex-1 flex min-h-0 relative overflow-hidden">
+
+    <!-- LEFT DESIGN SIDEBAR -->
+    <aside id="sidebar" class="w-80 shrink-0 bg-surface-900 border-r border-slate-800/90 flex flex-col z-20 transition-transform duration-200 absolute lg:static inset-y-0 left-0 -translate-x-full lg:translate-x-0 shadow-2xl lg:shadow-none">
+      <!-- Sidebar Section Tabs -->
+      <div class="grid grid-cols-4 gap-1 p-2 border-b border-slate-800 bg-surface-950/60">
+        <button data-tab="shape" class="side-tab py-1.5 rounded-lg text-[11px] font-semibold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition">Shape</button>
+        <button data-tab="piles" class="side-tab py-1.5 rounded-lg text-[11px] font-semibold text-slate-400 hover:text-white border border-transparent transition">Piles</button>
+        <button data-tab="finish" class="side-tab py-1.5 rounded-lg text-[11px] font-semibold text-slate-400 hover:text-white border border-transparent transition">Finishes</button>
+        <button data-tab="stairs" class="side-tab py-1.5 rounded-lg text-[11px] font-semibold text-slate-400 hover:text-white border border-transparent transition">Stairs</button>
+      </div>
+
+      <!-- Scrollable Tab Content -->
+      <div class="flex-1 overflow-y-auto custom-scroll p-3.5 space-y-4">
+
+        <!-- TAB 1: SHAPE & SITE -->
+        <div id="panel-shape" class="side-panel space-y-4">
+          <!-- Structural Climate Preset -->
+          <div class="space-y-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Climate &amp; Load Code</label>
+            <div class="grid grid-cols-2 gap-1.5">
+              <button id="btn-climate-ak" class="py-2 px-2.5 rounded-xl border border-cyan-500/40 bg-cyan-500/15 text-left transition">
+                <div class="text-xs font-bold text-cyan-300">Anchorage, AK</div>
+                <div class="text-[10px] text-slate-400 font-mono">80 psf • 60" Frost</div>
+              </button>
+              <button id="btn-climate-std" class="py-2 px-2.5 rounded-xl border border-slate-700 bg-surface-850 hover:bg-surface-800 text-left transition">
+                <div class="text-xs font-bold text-slate-200">Standard IRC</div>
+                <div class="text-[10px] text-slate-400 font-mono">40 psf • 36" Frost</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Polygon Shape Presets -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <label class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Deck Footprint Preset</label>
+              <button id="btn-open-editor-quick" class="text-[10px] font-mono text-cyan-400 hover:underline">Edit Corners →</button>
+            </div>
+            <div class="grid grid-cols-2 gap-1.5">
+              <button data-preset="rect" class="preset-btn py-2 px-2.5 rounded-xl bg-surface-850 hover:bg-surface-800 border border-slate-700 text-xs font-medium text-slate-200 transition">Rectangle</button>
+              <button data-preset="lshape" class="preset-btn py-2 px-2.5 rounded-xl bg-surface-850 hover:bg-surface-800 border border-slate-700 text-xs font-medium text-slate-200 transition">L-Shape</button>
+              <button data-preset="chamfer" class="preset-btn py-2 px-2.5 rounded-xl bg-surface-850 hover:bg-surface-800 border border-slate-700 text-xs font-medium text-slate-200 transition">Chamfered 45°</button>
+              <button data-preset="octagon" class="preset-btn py-2 px-2.5 rounded-xl bg-surface-850 hover:bg-surface-800 border border-cyan-500/40 text-xs font-semibold text-cyan-300 transition">Octagon View</button>
+            </div>
+          </div>
+
+          <!-- Overall Dimensions & High Elevation -->
+          <div class="space-y-3 bg-surface-950/70 p-3 rounded-xl border border-slate-800">
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-300 font-medium">Overall Width (X)</span>
+                <span id="val-width" class="font-mono text-cyan-300 font-semibold">18'-0"</span>
+              </div>
+              <input id="rng-width" type="range" min="8" max="40" step="0.5" value="18" class="w-full" />
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-300 font-medium">Overall Depth (Z)</span>
+                <span id="val-depth" class="font-mono text-cyan-300 font-semibold">14'-0"</span>
+              </div>
+              <input id="rng-depth" type="range" min="6" max="28" step="0.5" value="14" class="w-full" />
+            </div>
+            <div class="pt-1 border-t border-slate-800">
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-200 font-semibold">Deck Elevation (Height)</span>
+                <span id="val-height" class="font-mono text-amber-300 font-bold">10'-6"</span>
+              </div>
+              <input id="rng-height" type="range" min="1.5" max="16" step="0.5" value="10.5" class="w-full" />
+              <div class="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
+                <span>1.5' Low</span>
+                <span>6' Knee Brace</span>
+                <span>9'+ X-Brace</span>
+                <span>16' 2-Story</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Structural & Scene Toggles -->
+          <div class="space-y-2">
+            <div class="p-2.5 rounded-xl bg-surface-850/70 border border-slate-800 space-y-1.5">
+              <div class="flex items-center justify-between">
+                <label for="sel-bracing" class="text-xs font-medium text-slate-200">Post &amp; Beam Bracing</label>
+                <span class="text-[10px] font-mono text-cyan-400">4×6 Y-Style</span>
+              </div>
+              <select id="sel-bracing" class="w-full bg-surface-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-mono text-cyan-300">
+                <option value="ybrace" selected>Heavy 4×6 Y-Braces (Clean Alaska)</option>
+                <option value="xbrace">Y-Braces + Full Lateral X-Bracing</option>
+                <option value="none">None (Clean Posts Only)</option>
+              </select>
+            </div>
+            <label class="flex items-center justify-between p-2.5 rounded-xl bg-surface-850/70 border border-slate-800 cursor-pointer">
+              <div>
+                <div class="text-xs font-medium text-slate-200">2-Story Walkout House Backdrop</div>
+                <div class="text-[10px] text-slate-400">Auto-scales siding &amp; doors to elevation</div>
+              </div>
+              <input id="chk-house" type="checkbox" checked class="w-4 h-4 accent-cyan-400" />
+            </label>
+          </div>
+        </div>
+
+        <!-- TAB 2: PILES & FOUNDATION -->
+        <div id="panel-piles" class="side-panel hidden space-y-4">
+          <div class="space-y-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Foundation System</label>
+            <div class="grid grid-cols-3 gap-1.5">
+              <button data-found="helical" class="found-btn py-2 px-1.5 rounded-xl border border-amber-500/50 bg-amber-500/15 text-[11px] font-semibold text-amber-300 transition">Helical Piles</button>
+              <button data-found="sonotube" class="found-btn py-2 px-1.5 rounded-xl border border-slate-700 bg-surface-850 text-[11px] font-medium text-slate-300 transition">Sonotube</button>
+              <button data-found="blocks" class="found-btn py-2 px-1.5 rounded-xl border border-slate-700 bg-surface-850 text-[11px] font-medium text-slate-300 transition">Pier Blocks</button>
+            </div>
+          </div>
+
+          <!-- Helical Specs -->
+          <div id="helical-spec-box" class="space-y-3 bg-surface-950/70 p-3 rounded-xl border border-slate-800">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[10px] text-slate-400 mb-1">Shaft Diameter</label>
+                <select id="sel-pile-shaft" class="w-full bg-surface-850 border border-slate-700 rounded-lg px-2 py-1.5 text-xs font-mono text-amber-300">
+                  <option value='2-7/8"'>2-7/8" Sch 40</option>
+                  <option value='3-1/2"' selected>3-1/2" Sch 40</option>
+                  <option value='4-1/2"'>4-1/2" Heavy</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[10px] text-slate-400 mb-1">Helix Plates</label>
+                <select id="sel-pile-helix" class="w-full bg-surface-850 border border-slate-700 rounded-lg px-2 py-1.5 text-xs font-mono text-amber-300">
+                  <option value='Single 10"'>Single 10"</option>
+                  <option value='Double 10"/12"' selected>Double 10"/12"</option>
+                  <option value='Triple 8"/10"/12"'>Triple 8/10/12"</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-300">Pile Embedment Depth</span>
+                <span id="val-pile-depth" class="font-mono text-amber-300 font-semibold">9'-0"</span>
+              </div>
+              <input id="rng-pile-depth" type="range" min="5" max="15" step="0.5" value="9" class="w-full" />
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-300">Design Frost Line Depth</span>
+                <span id="val-frost-depth" class="font-mono text-cyan-300 font-semibold">60"</span>
+              </div>
+              <input id="rng-frost-depth" type="range" min="18" max="72" step="6" value="60" class="w-full" />
+            </div>
+          </div>
+
+          <!-- Subsurface X-Ray Quick Toggle -->
+          <button id="btn-piles-xray" class="w-full py-2.5 px-3 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-xs font-semibold text-cyan-300 transition flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            <span>Inspect Subsurface Piles &amp; Frost Line</span>
+          </button>
+
+          <!-- Custom Beam & Helical Pile Positioning Controls -->
+          <div class="grid grid-cols-2 gap-1.5">
+            <button id="btn-edit-piles-2d" class="py-2 px-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-[11px] font-semibold text-amber-300 transition">Move Beams &amp; Piles</button>
+            <button id="btn-reset-piles" class="py-2 px-2 rounded-xl bg-surface-850 hover:bg-surface-800 border border-slate-700 text-[11px] font-medium text-slate-300 transition">Reset Auto-Layout</button>
+          </div>
+
+          <!-- Live Pile Schedule Summary -->
+          <div class="bg-surface-950/70 rounded-xl border border-slate-800 p-2.5">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[11px] font-semibold text-slate-300">Live Pile Schedule</span>
+              <span id="pile-count-badge" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300">4 Piles</span>
+            </div>
+            <div id="pile-schedule-mini" class="space-y-1 max-h-44 overflow-y-auto custom-scroll text-[10px] font-mono"></div>
+          </div>
+        </div>
+
+        <!-- TAB 3: DECKING & RAILING -->
+        <div id="panel-finish" class="side-panel hidden space-y-4">
+          <div class="space-y-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Decking Brand &amp; Color</label>
+            <div id="material-grid" class="grid grid-cols-1 gap-1.5"></div>
+          </div>
+
+          <div class="space-y-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Railing System</label>
+            <div class="grid grid-cols-2 gap-1.5">
+              <button data-rail="cable" class="rail-btn py-2 px-2 rounded-xl border border-cyan-500/40 bg-cyan-500/15 text-xs font-semibold text-cyan-300 transition">Stainless Cable</button>
+              <button data-rail="aluminum" class="rail-btn py-2 px-2 rounded-xl border border-slate-700 bg-surface-850 text-xs font-medium text-slate-300 transition">Black Aluminum</button>
+              <button data-rail="glass" class="rail-btn py-2 px-2 rounded-xl border border-slate-700 bg-surface-850 text-xs font-medium text-slate-300 transition">Tempered Glass</button>
+              <button data-rail="composite" class="rail-btn py-2 px-2 rounded-xl border border-slate-700 bg-surface-850 text-xs font-medium text-slate-300 transition">Composite Post</button>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <label class="flex items-center justify-between p-2.5 rounded-xl bg-surface-850/70 border border-slate-800 cursor-pointer">
+              <span class="text-xs font-medium text-slate-200">Matching Cocktail Drink Rail</span>
+              <input id="chk-drinkrail" type="checkbox" checked class="w-4 h-4 accent-cyan-400" />
+            </label>
+            <label class="flex items-center justify-between p-2.5 rounded-xl bg-surface-850/70 border border-slate-800 cursor-pointer">
+              <span class="text-xs font-medium text-slate-200">LED Post Cap &amp; Stair Riser Lights</span>
+              <input id="chk-led" type="checkbox" checked class="w-4 h-4 accent-cyan-400" />
+            </label>
+          </div>
+        </div>
+
+        <!-- TAB 4: STAIRS & LANDINGS -->
+        <div id="panel-stairs" class="side-panel hidden space-y-4">
+          <label class="flex items-center justify-between p-2.5 rounded-xl bg-surface-850/70 border border-slate-800 cursor-pointer">
+            <span class="text-xs font-semibold text-slate-200">Include Staircase</span>
+            <input id="chk-stairs" type="checkbox" checked class="w-4 h-4 accent-cyan-400" />
+          </label>
+
+          <div class="space-y-3 bg-surface-950/70 p-3 rounded-xl border border-slate-800">
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">Staircase Width</label>
+              <select id="sel-stair-width" class="w-full bg-surface-850 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-mono text-cyan-300">
+                <option value="36">36" (3'-0" IRC Min)</option>
+                <option value="42">42" (3'-6" Standard)</option>
+                <option value="48" selected>48" (4'-0" Wide)</option>
+                <option value="60">60" (5'-0" Grand)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">Tall Deck Intermediate Landing</label>
+              <select id="sel-stair-landing" class="w-full bg-surface-850 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-mono text-cyan-300">
+                <option value="none">Straight Continuous Run</option>
+                <option value="straight">Straight Mid-Landing (H ≥ 6')</option>
+                <option value="lturn" selected>90° L-Turn Mid-Landing (H ≥ 6')</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="stair-code-card" class="bg-surface-950/70 p-3 rounded-xl border border-slate-800 space-y-1.5 text-[11px] font-mono"></div>
+        </div>
+
+      </div>
+
+      <!-- Sidebar Footer: Save/Load JSON -->
+      <div class="p-2.5 border-t border-slate-800 bg-surface-950/80 grid grid-cols-2 gap-1.5">
+        <button id="btn-save-json" class="py-1.5 px-2 rounded-lg bg-surface-850 hover:bg-surface-800 border border-slate-700 text-[11px] font-medium text-slate-300 transition">Save JSON</button>
+        <label class="py-1.5 px-2 rounded-lg bg-surface-850 hover:bg-surface-800 border border-slate-700 text-[11px] font-medium text-slate-300 transition text-center cursor-pointer">
+          Load JSON
+          <input id="inp-load-json" type="file" accept=".json" class="hidden" />
+        </label>
+      </div>
+    </aside>
+
+    <!-- MAIN VIEWPORT AREA -->
+    <main class="flex-1 flex min-w-0 min-h-0 relative bg-surface-950">
+
+      <!-- VIEW 1: 3D STUDIO -->
+      <section id="view-3d" class="flex-1 relative min-w-0 min-h-0 overflow-hidden">
+        <div id="three-container" class="w-full h-full"></div>
+
+        <!-- Bottom Floating 3D Controls -->
+        <div class="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 glass-pill rounded-2xl px-2.5 py-1.5 flex flex-wrap items-center justify-center gap-1.5 max-w-[96%]">
+          <div class="flex items-center gap-1">
+            <button data-cam="iso" class="cam-btn px-2 py-1 rounded-lg text-[11px] font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition">Iso</button>
+            <button data-cam="front" class="cam-btn px-2 py-1 rounded-lg text-[11px] font-medium text-slate-300 hover:bg-surface-800 transition">Front</button>
+            <button data-cam="side" class="cam-btn px-2 py-1 rounded-lg text-[11px] font-medium text-slate-300 hover:bg-surface-800 transition">Side</button>
+            <button data-cam="under" class="cam-btn px-2 py-1 rounded-lg text-[11px] font-medium text-slate-300 hover:bg-surface-800 transition">Under-Deck</button>
+            <button data-cam="top" class="cam-btn px-2 py-1 rounded-lg text-[11px] font-medium text-slate-300 hover:bg-surface-800 transition">Top</button>
+          </div>
+          <span class="text-slate-700 hidden sm:inline">|</span>
+          <div class="flex items-center gap-1">
+            <button data-light="day" class="light-btn px-2 py-1 rounded-lg text-[11px] font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30 transition">☀ Day</button>
+            <button data-light="golden" class="light-btn px-2 py-1 rounded-lg text-[11px] font-medium text-slate-300 hover:bg-surface-800 transition">🌅 Golden</button>
+            <button data-light="twilight" class="light-btn px-2 py-1 rounded-lg text-[11px] font-medium text-slate-300 hover:bg-surface-800 transition">🌙 Twilight</button>
+          </div>
+          <span class="text-slate-700 hidden sm:inline">|</span>
+          <button id="btn-xray" class="px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-200 hover:bg-surface-800 border border-slate-700 transition">🔍 X-Ray / Piles</button>
+          <button id="btn-snap-png" class="px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-200 hover:bg-surface-800 border border-slate-700 transition">📷 PNG</button>
+        </div>
+      </section>
+
+      <!-- VIEW 2: INTERACTIVE 2D POLYGON & BEAM/PILE EDITOR -->
+      <section id="view-editor" class="hidden flex-1 relative min-w-0 min-h-0 bg-[#080d17] border-l border-slate-800 overflow-hidden">
+        <!-- Top Layout Editor Toolbar -->
+        <div class="absolute top-3 left-3 right-3 flex flex-wrap items-center justify-between gap-2 z-20 pointer-events-none">
+          <div class="glass-pill px-2.5 py-1.5 rounded-xl flex items-center gap-2 pointer-events-auto text-[11px]">
+            <span class="font-mono font-semibold text-cyan-400">2D EDITOR</span>
+            <span class="text-slate-600">|</span>
+            <div class="flex items-center bg-surface-950 p-0.5 rounded-lg border border-slate-800">
+              <button id="ed-mode-shape" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-cyan-500/20 text-cyan-300 transition">Shape &amp; Rails</button>
+              <button id="ed-mode-piles" class="px-2 py-0.5 rounded text-[10px] font-semibold text-slate-400 hover:text-amber-300 transition">Beams &amp; Piles</button>
+            </div>
+            <span class="text-slate-600">|</span>
+            <label class="flex items-center gap-1 cursor-pointer text-slate-300">
+              <input id="chk-angle-snap" type="checkbox" checked class="accent-cyan-400" />
+              <span>Angle Snap</span>
+            </label>
+            <select id="sel-grid-snap" class="bg-surface-950 border border-slate-700 rounded px-1.5 py-0.5 font-mono text-[10px] text-cyan-300">
+              <option value="0.5">Grid: 6"</option>
+              <option value="1" selected>Grid: 1'-0"</option>
+              <option value="0">Grid: Free</option>
+            </select>
+          </div>
+
+          <div id="ed-hint-bar" class="glass-pill px-2.5 py-1.5 rounded-xl flex items-center gap-2 pointer-events-auto text-[10px] text-slate-400">
+            <span>Drag corners/edges</span>
+            <span>•</span>
+            <span>Click <span class="text-cyan-300 font-mono">+</span> to split</span>
+            <span>•</span>
+            <span>Click dimension to type exact length</span>
+          </div>
+        </div>
+
+        <canvas id="editor-canvas" class="w-full h-full block"></canvas>
+
+        <!-- Exact Length Popover -->
+        <div id="edge-len-popover" class="hidden absolute z-30 glass-pill p-2.5 rounded-xl flex items-center gap-2">
+          <span class="text-[11px] font-mono text-slate-300">Length (ft):</span>
+          <input id="inp-exact-len" type="number" step="0.25" min="2" max="40" class="w-20 bg-surface-950 border border-cyan-500/50 rounded-lg px-2 py-1 text-xs font-mono text-white outline-none" />
+          <button id="btn-apply-len" class="px-2.5 py-1 rounded-lg bg-cyan-500 text-slate-950 font-semibold text-xs">Apply</button>
+          <button id="btn-cancel-len" class="px-2 py-1 rounded-lg bg-surface-800 text-slate-300 text-xs">✕</button>
+        </div>
+
+        <!-- Floating Edge / Pile Role Bar at Bottom of Editor -->
+        <div class="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 glass-pill rounded-xl px-3 py-1.5 flex flex-wrap items-center justify-center gap-2 text-[11px] max-w-[96%]">
+          <div id="ed-bar-shape-tools" class="flex flex-wrap items-center justify-center gap-2">
+            <span class="font-mono text-slate-400">Edge <strong id="ed-bar-idx" class="text-cyan-300">E1</strong>:</span>
+            <button id="ed-btn-ledger" class="px-2 py-1 rounded-lg border border-slate-700 bg-surface-850 hover:bg-surface-800 text-slate-200 transition">House Ledger</button>
+            <button id="ed-btn-rail" class="px-2 py-1 rounded-lg border border-slate-700 bg-surface-850 hover:bg-surface-800 text-slate-200 transition">Toggle Railing</button>
+            <button id="ed-btn-rail-all" class="px-2 py-1 rounded-lg border border-cyan-500/40 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 transition" title="Enable railing on all non-ledger edges">Rail All Open Edges</button>
+            <button id="ed-btn-stairs" class="px-2 py-1 rounded-lg border border-slate-700 bg-surface-850 hover:bg-surface-800 text-slate-200 transition">Attach Stairs</button>
+            <span class="text-slate-700">|</span>
+            <button id="ed-btn-del-vert" class="px-2 py-1 rounded-lg border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 transition" title="Delete selected vertex">Del Corner</button>
+          </div>
+          <div id="ed-bar-pile-tools" class="hidden flex flex-wrap items-center justify-center gap-2">
+            <span class="font-mono text-amber-300">BEAM &amp; PILE LAYOUT:</span>
+            <button id="ed-btn-add-pile" class="px-2.5 py-1 rounded-lg border border-amber-500/40 bg-amber-500/15 hover:bg-amber-500/25 text-amber-200 transition">+ Add Pile</button>
+            <button id="ed-btn-reset-piles" class="px-2.5 py-1 rounded-lg border border-slate-700 bg-surface-850 hover:bg-surface-800 text-slate-200 transition">Reset Auto-Engineered</button>
+            <span class="text-[10px] text-slate-400 hidden sm:inline">Drag gold beams or pile dots • Right-click pile to delete</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 3: 2D CAD ARCHITECTURAL PERMIT BLUEPRINT -->
+      <section id="view-blueprint" class="hidden flex-1 flex-col min-w-0 min-h-0 bg-surface-950 p-3 sm:p-4 overflow-auto custom-scroll">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3 no-print">
+          <div class="flex items-center gap-2 flex-wrap">
+            <input id="inp-proj-name" type="text" value="ANCHORAGE HIGH-ELEVATION DECK" class="bg-surface-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-mono text-white w-60" placeholder="Project Title" />
+            <input id="inp-proj-addr" type="text" value="ANCHORAGE, AK — 80 PSF SNOW / SEISMIC D2" class="bg-surface-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-300 w-72" placeholder="Site Address" />
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btn-bp-theme" class="px-3 py-1.5 rounded-lg bg-surface-850 border border-slate-700 text-xs font-medium text-slate-200 hover:bg-surface-800 transition">Toggle Print White / Dark CAD</button>
+            <button id="btn-bp-print" class="px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold text-xs transition">Print / Save PDF</button>
+          </div>
+        </div>
+        <div class="flex-1 flex items-center justify-center min-h-[540px]">
+          <canvas id="blueprint-canvas" class="max-w-full max-h-full rounded-xl border border-slate-800 shadow-2xl"></canvas>
+        </div>
+      </section>
+
+      <!-- VIEW 4: MATERIALS, CUT LIST & IRC CHECKLIST -->
+      <section id="view-materials" class="hidden flex-1 flex-col min-w-0 min-h-0 bg-surface-950 p-4 sm:p-6 overflow-y-auto custom-scroll">
+        <div class="max-w-5xl mx-auto w-full space-y-5">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="text-lg font-bold text-white">Materials Takeoff, Cut List &amp; Permit Readiness</h2>
+              <p class="text-xs text-slate-400">Auto-engineered to IRC / DCA6 standards with helical pile schedule &amp; bracing lumber.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="flex items-center bg-surface-900 border border-slate-800 rounded-xl p-1 text-xs">
+                <span class="px-2 text-slate-400">Waste:</span>
+                <button data-waste="0.05" class="waste-btn px-2 py-1 rounded-lg text-slate-400">5%</button>
+                <button data-waste="0.10" class="waste-btn px-2 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 font-semibold">10%</button>
+                <button data-waste="0.15" class="waste-btn px-2 py-1 rounded-lg text-slate-400">15%</button>
+              </div>
+              <button id="btn-export-csv" class="px-3 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-xs font-semibold transition">Export CSV</button>
+            </div>
+          </div>
+
+          <!-- Summary KPI Cards -->
+          <div id="mat-kpi-row" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+
+          <!-- IRC Compliance Checklist -->
+          <div class="bg-surface-900 border border-slate-800 rounded-2xl p-4">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-cyan-400 mb-3">IRC / Anchorage Permit Readiness Check</h3>
+            <div id="irc-checklist" class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs"></div>
+          </div>
+
+          <!-- Materials & Cut List Table -->
+          <div class="bg-surface-900 border border-slate-800 rounded-2xl overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="bg-surface-950/90 text-slate-400 font-mono text-[11px] border-b border-slate-800">
+                    <th class="py-2.5 px-3">Category</th>
+                    <th class="py-2.5 px-3">Material / Structural Member</th>
+                    <th class="py-2.5 px-3">Cut Spec / Size</th>
+                    <th class="py-2.5 px-3 text-right">Qty</th>
+                    <th class="py-2.5 px-3 text-right">Est. Cost</th>
+                  </tr>
+                </thead>
+                <tbody id="mat-table-body" class="divide-y divide-slate-800/70"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toast-container" class="fixed top-16 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <script>
+    /* =====================================================================
+     * 1. MATERIALS CATALOG & APPLICATION STATE
+     * ===================================================================== */
+    const MATERIALS = [
+      { id: 'trex-island-mist', brand: 'Trex Transcend', name: 'Island Mist', color: '#8f969c', grain: '#727980', fascia: '#523a2c', priceSqFt: 11.5 },
+      { id: 'trex-spiced-rum', brand: 'Trex Transcend', name: 'Spiced Rum', color: '#6b4530', grain: '#4d2e1e', fascia: '#3f2518', priceSqFt: 11.5 },
+      { id: 'azek-coastline', brand: 'TimberTech AZEK', name: 'Coastline', color: '#b5aa9c', grain: '#968b7d', fascia: '#5c5349', priceSqFt: 14.0 },
+      { id: 'azek-mahogany', brand: 'TimberTech AZEK', name: 'Mahogany', color: '#783c26', grain: '#572817', fascia: '#451f12', priceSqFt: 14.0 },
+      { id: 'fiberon-sienna', brand: 'Fiberon Symmetry', name: 'Warm Sienna', color: '#8c5332', grain: '#693b21', fascia: '#4d2b18', priceSqFt: 10.75 },
+      { id: 'deckorators-tundra', brand: 'Deckorators Voyage', name: 'Tundra Gray', color: '#7c8285', grain: '#5d6366', fascia: '#3b4042', priceSqFt: 12.25 },
+      { id: 'cedar-natural', brand: 'Western Red Cedar', name: 'Clear Heart', color: '#a8693c', grain: '#824d27', fascia: '#754422', priceSqFt: 8.5 }
+    ];
+
+    const state = {
+      view: '3d', // '3d' | 'editor' | 'split' | 'blueprint' | 'materials'
+      preset: 'octagon',
+      vertices: [],
+      edgeMeta: [], // { isLedger, railing, hasStairs }
+      selectedEdge: 4,
+      selectedVertex: 4,
+
+      // Dimensions & Climate
+      height: 10.5,
+      snowLoadPsf: 80,
+      bracingStyle: 'ybrace', // 'ybrace' | 'xbrace' | 'none'
+
+      // Foundation & Helical Piles
+      foundationType: 'helical', // 'helical' | 'sonotube' | 'blocks'
+      pileShaft: '3-1/2"',
+      pileHelix: 'Double 10"/12"',
+      pileBracket: '6x6 Post Saddle',
+      pileDepthFt: 9.0,
+      frostDepthIn: 60,
+      customBeamZs: null, // Optional user-dragged beam Z lines
+      customPiles: null,  // Optional user-dragged/added pile positions
+
+      // Decking & Railing
+      materialId: 'trex-island-mist',
+      railing: 'cable',
+      drinkRail: true,
+
+      // Stairs
+      stairs: true,
+      stairWidthIn: 48,
+      stairLanding: 'lturn', // 'none' | 'straight' | 'lturn'
+
+      // Scene & Editor Settings
+      ledLights: true,
+      houseBackdrop: true,
+      lighting: 'day',
+      xray: false,
+      editLayer: 'shape', // 'shape' | 'piles'
+      angleSnap: true,
+      gridSnap: 1.0,
+      bpDark: true,
+      wasteFactor: 0.10,
+
+      // Project Metadata
+      projName: 'ANCHORAGE HIGH-ELEVATION DECK',
+      projAddr: 'ANCHORAGE, AK — 80 PSF SNOW / SEISMIC D2'
+    };
+
+    let currentModel = null;
+
+    /* =====================================================================
+     * 2. TOAST HELPER & PRESET POLYGONS
+     * ===================================================================== */
+    function showToast(msg, type = 'info') {
+      const wrap = document.getElementById('toast-container');
+      const el = document.createElement('div');
+      const colors = {
+        info: 'border-cyan-500/40 text-cyan-200',
+        success: 'border-emerald-500/40 text-emerald-200',
+        warn: 'border-amber-500/40 text-amber-200'
+      };
+      el.className = `glass-pill px-3.5 py-2 rounded-xl text-xs font-medium border ${colors[type] || colors.info} transition-all duration-300 translate-x-4 opacity-0`;
+      el.textContent = msg;
+      wrap.appendChild(el);
+      requestAnimationFrame(() => el.classList.remove('translate-x-4', 'opacity-0'));
+      setTimeout(() => {
+        el.classList.add('translate-x-4', 'opacity-0');
+        setTimeout(() => el.remove(), 300);
+      }, 2800);
+    }
+
+    function formatFtIn(ft) {
+      const totalIn = Math.round(ft * 12);
+      const f = Math.floor(totalIn / 12);
+      const i = Math.abs(totalIn % 12);
+      return `${f}'-${i}"`;
+    }
+
+    function loadPreset(name) {
+      state.preset = name;
+      if (name === 'rect') {
+        state.vertices = [
+          { x: -9, z: 0 }, { x: 9, z: 0 }, { x: 9, z: 14 }, { x: -9, z: 14 }
+        ];
+        state.edgeMeta = [
+          { isLedger: true, railing: false, hasStairs: false },
+          { isLedger: false, railing: true, hasStairs: false },
+          { isLedger: false, railing: true, hasStairs: true },
+          { isLedger: false, railing: true, hasStairs: false }
+        ];
+        state.selectedEdge = 2;
+      } else if (name === 'lshape') {
+        state.vertices = [
+          { x: -11, z: 0 }, { x: 11, z: 0 }, { x: 11, z: 16 },
+          { x: 1, z: 16 }, { x: 1, z: 10 }, { x: -11, z: 10 }
+        ];
+        state.edgeMeta = [
+          { isLedger: true, railing: false, hasStairs: false },
+          { isLedger: false, railing: true, hasStairs: false },
+          { isLedger: false, railing: true, hasStairs: true },
+          { isLedger: false, railing: true, hasStairs: false },
+          { isLedger: false, railing: true, hasStairs: false },
+          { isLedger: false, railing: true, hasStairs: false }
+        ];
+        state.selectedEdge = 2;
+      } else if (name === 'chamfer') {
+        state.vertices = [
+          { x: -10, z: 0 }, { x: 10, z: 0 }, { x: 10, z: 9 },
+          { x: 5, z: 14 }, { x: -5, z: 14 }, { x: -10, z: 9 }
+        ];
+        state.edgeMeta = [
+          { isLedger: true, railing: false, hasStairs: false },
+          { isLedger: false, railing: true, hasStairs: false },
+          { isLedger: false, railing: true, hasStairs: true },
+          { isLedger: false, railing: true, hasStairs: false },
+          { isLedger: false, railing: true, hasStairs: false },
+          { isLedger: false, railing: true, hasStairs: false }
+        ];
+        state.selectedEdge = 2;
+      } else if (name === 'octagon') {
+        state.vertices = [
+          { x: -6, z: 0 }, { x: 6, z: 0 }, { x: 10, z: 4 },
+          { x: 10, z: 10 }, { x: 6, z: 14 }, { x: -6, z: 14 },
+          { x: -10, z: 10 }, { x: -10, z: 4 }
+        ];
+        state.edgeMeta = [
+          { isLedger: true, railing: false, hasStairs: false },
+          { isLedger: false, railing: true, hasStairs: false },
+          { isLedger: false, railing: true, hasStairs: false },
+          { isLedger: false, railing: true, hasStairs: true },
+          { isLedger: false, railing: true, hasStairs: false },
+          { isLedger: false, railing: true, hasStairs: false },
+          { isLedger: false, railing: true, hasStairs: false },
+          { isLedger: false, railing: true, hasStairs: false }
+        ];
+        state.selectedEdge = 3;
+      }
+      state.selectedVertex = state.selectedEdge;
+      state.customBeamZs = null;
+      state.customPiles = null;
+      syncOverallDimsFromPolygon();
+    }
+
+    /* =====================================================================
+     * 3. 2D POLYGON MATH & UNIFIED STRUCTURAL ENGINE
+     * ===================================================================== */
+    function pointInPolygon(verts, x, z) {
+      let inside = false;
+      for (let i = 0, j = verts.length - 1; i < verts.length; j = i++) {
+        const xi = verts[i].x, zi = verts[i].z;
+        const xj = verts[j].x, zj = verts[j].z;
+        const intersect = ((zi > z) !== (zj > z)) && (x < (xj - xi) * (z - zi) / ((zj - zi) || 1e-9) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    }
+
+    function polygonArea(verts) {
+      let a = 0;
+      for (let i = 0; i < verts.length; i++) {
+        const p1 = verts[i], p2 = verts[(i + 1) % verts.length];
+        a += (p1.x * p2.z - p2.x * p1.z);
+      }
+      return Math.abs(a) * 0.5;
+    }
+
+    function polygonBounds(verts) {
+      let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+      verts.forEach(v => {
+        if (v.x < minX) minX = v.x;
+        if (v.x > maxX) maxX = v.x;
+        if (v.z < minZ) minZ = v.z;
+        if (v.z > maxZ) maxZ = v.z;
+      });
+      return { minX, maxX, minZ, maxZ, width: maxX - minX, depth: maxZ - minZ };
+    }
+
+    function clipHorizontalLineInPolygon(verts, z) {
+      const xs = [];
+      for (let i = 0; i < verts.length; i++) {
+        const a = verts[i], b = verts[(i + 1) % verts.length];
+        if ((a.z <= z && b.z > z) || (b.z <= z && a.z > z)) {
+          const t = (z - a.z) / (b.z - a.z);
+          xs.push(a.x + t * (b.x - a.x));
+        }
+      }
+      xs.sort((a, b) => a - b);
+      const segs = [];
+      for (let i = 0; i + 1 < xs.length; i += 2) {
+        if (xs[i + 1] - xs[i] > 0.25) segs.push([xs[i], xs[i + 1]]);
+      }
+      return segs;
+    }
+
+    function clipVerticalLineInPolygon(verts, x) {
+      const zs = [];
+      for (let i = 0; i < verts.length; i++) {
+        const a = verts[i], b = verts[(i + 1) % verts.length];
+        if ((a.x <= x && b.x > x) || (b.x <= x && a.x > x)) {
+          const t = (x - a.x) / (b.x - a.x);
+          zs.push(a.z + t * (b.z - a.z));
+        }
+      }
+      zs.sort((a, b) => a - b);
+      const segs = [];
+      for (let i = 0; i + 1 < zs.length; i += 2) {
+        if (zs[i + 1] - zs[i] > 0.25) segs.push([zs[i], zs[i + 1]]);
+      }
+      return segs;
+    }
+
+    function syncOverallDimsFromPolygon() {
+      const b = polygonBounds(state.vertices);
+      const wEl = document.getElementById('rng-width');
+      const dEl = document.getElementById('rng-depth');
+      if (wEl) wEl.value = Math.min(40, Math.max(8, b.width)).toFixed(1);
+      if (dEl) dEl.value = Math.min(28, Math.max(6, b.depth)).toFixed(1);
+      document.getElementById('val-width').textContent = formatFtIn(b.width);
+      document.getElementById('val-depth').textContent = formatFtIn(b.depth);
+      document.getElementById('val-height').textContent = formatFtIn(state.height);
+    }
+
+    function scalePolygonToOverall(targetW, targetD) {
+      const b = polygonBounds(state.vertices);
+      const cx = (b.minX + b.maxX) / 2;
+      const sx = targetW / Math.max(1, b.width);
+      const sz = targetD / Math.max(1, b.depth);
+      state.vertices.forEach(v => {
+        v.x = Number((cx + (v.x - cx) * sx).toFixed(2));
+        v.z = Number((b.minZ + (v.z - b.minZ) * sz).toFixed(2));
+      });
+      state.customBeamZs = null;
+      state.customPiles = null;
+    }
+
+    function computeDeckModel(st) {
+      const verts = st.vertices;
+      const bounds = polygonBounds(verts);
+      const area = polygonArea(verts);
+      const H = st.height;
+
+      // Perimeter, Ledger & Railing Segments
+      let perimeter = 0, ledgerLength = 0, totalRailLF = 0;
+      const edges = [];
+      const railSegments = [];
+      let stairEdgeIdx = -1;
+
+      for (let i = 0; i < verts.length; i++) {
+        const a = verts[i], b = verts[(i + 1) % verts.length];
+        const meta = st.edgeMeta[i] || { isLedger: false, railing: true, hasStairs: false };
+        const len = Math.hypot(b.x - a.x, b.z - a.z);
+        perimeter += len;
+        if (meta.isLedger) ledgerLength += len;
+        if (meta.hasStairs && st.stairs) stairEdgeIdx = i;
+        edges.push({ idx: i, a, b, len, meta });
+
+        if (meta.railing && !meta.isLedger && st.railing !== 'none') {
+          if (meta.hasStairs && st.stairs) {
+            const stairW = Math.min(len - 0.8, st.stairWidthIn / 12);
+            if (len > stairW + 0.8) {
+              const halfGap = stairW / 2;
+              const ux = (b.x - a.x) / len, uz = (b.z - a.z) / len;
+              const mid = len / 2;
+              const s1 = { x1: a.x, z1: a.z, x2: a.x + ux * (mid - halfGap), z2: a.z + uz * (mid - halfGap) };
+              const s2 = { x1: a.x + ux * (mid + halfGap), z1: a.z + uz * (mid + halfGap), x2: b.x, z2: b.z };
+              railSegments.push(s1, s2);
+              totalRailLF += (len - stairW);
+            }
+          } else {
+            railSegments.push({ x1: a.x, z1: a.z, x2: b.x, z2: b.z });
+            totalRailLF += len;
+          }
+        }
+      }
+
+      // Joist Sizing (IRC / Alaska Snow Load)
+      const joistSpacingIn = st.snowLoadPsf >= 70 ? 12 : 16;
+      const joistSpacingFt = joistSpacingIn / 12;
+      const joistSize = (st.snowLoadPsf >= 70 || bounds.depth > 13) ? '2x12' : '2x10';
+      const joistDepthFt = joistSize === '2x12' ? 11.25 / 12 : 9.25 / 12;
+
+      const joists = [];
+      let totalJoistLF = 0;
+      for (let x = bounds.minX + joistSpacingFt; x < bounds.maxX - 0.15; x += joistSpacingFt) {
+        const segs = clipVerticalLineInPolygon(verts, x);
+        segs.forEach(([z0, z1]) => {
+          joists.push({ x, z0, z1, len: z1 - z0 });
+          totalJoistLF += (z1 - z0);
+        });
+      }
+
+      // Drop Beams running along X, clipped inside polygon
+      const beamPlies = (st.snowLoadPsf >= 70 || bounds.depth > 13) ? 3 : 2;
+      const beamSize = beamPlies === 3 ? 'Triple 2x12' : 'Double 2x12';
+      const beamDepthFt = 11.25 / 12;
+      const cantilever = Math.min(1.75, bounds.depth * 0.14);
+      let beamZs = [];
+      if (Array.isArray(st.customBeamZs) && st.customBeamZs.length > 0) {
+        beamZs = st.customBeamZs.map(z => Math.max(bounds.minZ + 0.6, Math.min(bounds.maxZ - 0.6, z)));
+      } else {
+        if (bounds.depth > 14.5) {
+          beamZs.push(bounds.minZ + bounds.depth * 0.48, bounds.maxZ - cantilever);
+        } else {
+          beamZs.push(bounds.maxZ - cantilever);
+        }
+        if (ledgerLength < 2) {
+          beamZs.unshift(bounds.minZ + cantilever);
+        }
+      }
+
+      const beams = [];
+      const piles = [];
+      let totalBeamLF = 0;
+      // Realistic spacing for Triple/Double 2x12 drop beams so posts aren't overcrowded
+      const maxPostSpacing = st.snowLoadPsf >= 70 ? 8.0 : 9.5;
+
+      beamZs.forEach((bz, bIdx) => {
+        const segs = clipHorizontalLineInPolygon(verts, bz);
+        segs.forEach(([x0, x1]) => {
+          const inset = Math.min(0.6, (x1 - x0) * 0.08);
+          const bx0 = x0 + inset, bx1 = x1 - inset;
+          const bLen = bx1 - bx0;
+          if (bLen < 1.5) return;
+          beams.push({ z: bz, x0: bx0, x1: bx1, len: bLen, row: bIdx });
+          totalBeamLF += bLen * beamPlies;
+
+          if (!Array.isArray(st.customPiles)) {
+            const count = Math.max(2, Math.ceil((bLen - 1.2) / maxPostSpacing) + 1);
+            for (let i = 0; i < count; i++) {
+              const t = count === 1 ? 0.5 : i / (count - 1);
+              const px = (bx0 + 0.6) + t * Math.max(0.1, bLen - 1.2);
+              const tribArea = (bLen / Math.max(1, count - 1)) * (bounds.depth / Math.max(1, beamZs.length));
+              const designLoadLbs = Math.round(tribArea * (st.snowLoadPsf + 12));
+              const estTorque = Math.round(Math.max(2400, designLoadLbs * 0.42));
+              piles.push({
+                id: `HP-${piles.length + 1}`,
+                x: Number(px.toFixed(2)),
+                z: Number(bz.toFixed(2)),
+                beamRow: bIdx,
+                beamX0: bx0,
+                beamX1: bx1,
+                topY: Math.max(0.3, H - joistDepthFt - beamDepthFt - 1 / 12),
+                designLoadLbs,
+                estTorque
+              });
+            }
+          }
+        });
+      });
+
+      // Custom user-dragged/added pile coordinates
+      if (Array.isArray(st.customPiles)) {
+        const avgTrib = area / Math.max(1, st.customPiles.length);
+        st.customPiles.forEach((cp, idx) => {
+          const matchBeam = beams.find(b => b.row === cp.beamRow && Math.abs(b.z - cp.z) < 0.75) ||
+                            beams.find(b => Math.abs(b.z - cp.z) < 0.75);
+          const designLoadLbs = Math.round(avgTrib * (st.snowLoadPsf + 12));
+          const estTorque = Math.round(Math.max(2400, designLoadLbs * 0.42));
+          piles.push({
+            id: `HP-${idx + 1}`,
+            x: Number(cp.x.toFixed(2)),
+            z: Number(cp.z.toFixed(2)),
+            beamRow: matchBeam ? matchBeam.row : (cp.beamRow ?? 0),
+            beamX0: matchBeam ? matchBeam.x0 : cp.x,
+            beamX1: matchBeam ? matchBeam.x1 : cp.x,
+            topY: Math.max(0.3, H - joistDepthFt - (matchBeam ? beamDepthFt : 0) - 1 / 12),
+            designLoadLbs,
+            estTorque
+          });
+        });
+      }
+
+      // Stair Calculation (with optional intermediate landing for tall decks)
+      let stairSpec = null;
+      if (st.stairs && stairEdgeIdx >= 0) {
+        const se = edges[stairEdgeIdx];
+        const widthFt = Math.min(se.len - 0.3, st.stairWidthIn / 12);
+        const totalRiseIn = H * 12;
+        const numRisers = Math.max(2, Math.ceil(totalRiseIn / 7.5));
+        const actualRiseIn = totalRiseIn / numRisers;
+        const treadRunIn = 10.5;
+        const numStringers = Math.max(3, Math.ceil((widthFt * 12) / 12) + 1);
+
+        // Outward normal for clockwise polygon
+        const dx = se.b.x - se.a.x, dz = se.b.z - se.a.z;
+        const len = Math.max(0.01, se.len);
+        let nx = dz / len, nz = -dx / len;
+        // Verify outward direction
+        const mx = (se.a.x + se.b.x) / 2, mz = (se.a.z + se.b.z) / 2;
+        if (pointInPolygon(verts, mx + nx * 0.3, mz + nz * 0.3)) {
+          nx = -nx; nz = -nz;
+        }
+        const yaw = Math.atan2(nx, nz);
+
+        const useLanding = st.stairLanding !== 'none' && H >= 6.0 && numRisers >= 8;
+        const upperRisers = useLanding ? Math.ceil(numRisers / 2) : numRisers;
+        const lowerRisers = useLanding ? (numRisers - upperRisers) : 0;
+        const landingY = useLanding ? (lowerRisers * actualRiseIn / 12) : 0;
+        const landingSize = Math.max(3.5, widthFt);
+        const upperRunFt = (upperRisers - 1) * (treadRunIn / 12);
+        const lowerRunFt = useLanding ? (lowerRisers - 1) * (treadRunIn / 12) : 0;
+
+        stairSpec = {
+          edgeIdx: stairEdgeIdx,
+          anchorX: mx, anchorZ: mz,
+          nx, nz, yaw,
+          topY: H, widthFt,
+          numRisers, actualRiseIn, treadRunIn, numStringers,
+          useLanding, landingType: st.stairLanding,
+          upperRisers, lowerRisers, landingY, landingSize,
+          upperRunFt, lowerRunFt
+        };
+      }
+
+      // Materials & Cost Estimation
+      const mat = MATERIALS.find(m => m.id === st.materialId) || MATERIALS[0];
+      const waste = 1 + st.wasteFactor;
+      const deckingCost = area * mat.priceSqFt * waste;
+      const framingCost = (totalJoistLF * 3.4 + totalBeamLF * 5.2 + perimeter * 3.6 + piles.length * H * 4.5) * waste;
+      const railUnit = st.railing === 'cable' ? 98 : (st.railing === 'glass' ? 145 : (st.railing === 'none' ? 0 : 62));
+      const railCost = (totalRailLF + (stairSpec ? (stairSpec.numRisers * 1.1) : 0)) * railUnit;
+      const pileUnit = st.foundationType === 'helical' ? 485 : (st.foundationType === 'sonotube' ? 240 : 45);
+      const foundationCost = piles.length * pileUnit;
+      const stairCost = stairSpec ? (950 + stairSpec.numRisers * 125 + (stairSpec.useLanding ? 850 : 0)) : 0;
+      const bracingCost = st.bracingStyle === 'xbrace' ? 540 : (st.bracingStyle === 'ybrace' ? 320 : 0);
+      const hardwareCost = 420 + piles.length * 64 + (st.ledLights ? 520 : 0) + (H >= 5 ? bracingCost : 0);
+      const totalCost = Math.round(deckingCost + framingCost + railCost + foundationCost + stairCost + hardwareCost);
+
+      return {
+        verts, bounds, area, perimeter, ledgerLength, totalRailLF,
+        edges, railSegments,
+        joistSize, joistSpacingIn, joistDepthFt, joists, totalJoistLF,
+        beamSize, beamPlies, beamDepthFt, beams, totalBeamLF,
+        piles, stairSpec, mat,
+        costs: { deckingCost, framingCost, railCost, foundationCost, stairCost, hardwareCost, totalCost }
+      };
+    }
+
+    /* =====================================================================
+     * 4. THREE.JS 3D STUDIO ENGINE (SAWTOOTH STRINGERS + HELICAL PILES)
+     * ===================================================================== */
+    let scene, camera, renderer, deckGroup, envGroup, frostPlaneMesh, groundMesh;
+    let sunLight, hemiLight, fillLight;
+    const camCtrl = {
+      theta: 0.62, phi: 1.08, radius: 34,
+      target: new THREE.Vector3(0, 5.2, 7),
+      dragging: false, button: 0, lastX: 0, lastY: 0
+    };
+
+    function createWoodTexture(hexBase, hexGrain) {
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = hexBase;
+      ctx.fillRect(0, 0, 256, 256);
+      ctx.strokeStyle = hexGrain;
+      ctx.globalAlpha = 0.28;
+      for (let i = 0; i < 65; i++) {
+        ctx.lineWidth = 1 + Math.random() * 2;
+        ctx.beginPath();
+        const y = Math.random() * 256;
+        ctx.moveTo(0, y);
+        ctx.bezierCurveTo(85, y + (Math.random() - 0.5) * 8, 170, y + (Math.random() - 0.5) * 8, 256, y);
+        ctx.stroke();
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      return tex;
+    }
+
+    function addBox(parent, w, h, d, x, y, z, mat, cast = true) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+      mesh.position.set(x, y, z);
+      mesh.castShadow = cast;
+      mesh.receiveShadow = true;
+      parent.add(mesh);
+      return mesh;
+    }
+
+    function addHelicalPile3D(parent, x, z, depthFt, helixType, mats) {
+      const grp = new THREE.Group();
+      grp.position.set(x, 0, z);
+      // Galvanized steel shaft extending below grade
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, depthFt + 0.35, 14), mats.galvSteel);
+      shaft.position.y = 0.15 - (depthFt + 0.35) / 2;
+      grp.add(shaft);
+      // Post saddle bracket at grade
+      addBox(grp, 0.54, 0.22, 0.54, 0, 0.14, 0, mats.blackMetal);
+      // Helix plates below frost line
+      const numHelices = helixType.startsWith('Triple') ? 3 : (helixType.startsWith('Double') ? 2 : 1);
+      for (let i = 0; i < numHelices; i++) {
+        const r = 0.42 + i * 0.08;
+        const plate = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.07, 18), mats.helixGold);
+        plate.position.y = -depthFt + 0.65 + i * 1.45;
+        plate.rotation.z = 0.14;
+        grp.add(plate);
+      }
+      parent.add(grp);
+    }
+
+    /**
+     * Builds a clean sawtooth extruded staircase flight (ZERO stringer poke-through!)
+     */
+    function buildStairFlightGroup(widthFt, numRisers, totalDropFt, treadRunFt, numStringers, mats, withRail, withLed) {
+      const grp = new THREE.Group();
+      const stepRise = totalDropFt / numRisers;
+      const numTreads = Math.max(1, numRisers - 1);
+      const totalRun = numTreads * treadRunFt;
+      const stringerThk = 0.13;
+      const throat = 0.58;
+
+      // 1. True Sawtooth Extruded 2x12 Stringers
+      const shape = new THREE.Shape();
+      shape.moveTo(0, -0.05);
+      for (let i = 0; i < numTreads; i++) {
+        const yStep = -(i + 1) * stepRise;
+        shape.lineTo(i * treadRunFt, yStep);
+        shape.lineTo((i + 1) * treadRunFt, yStep);
+      }
+      shape.lineTo(totalRun, -totalDropFt);
+      shape.lineTo(Math.max(0.1, totalRun - 0.55), -totalDropFt);
+      shape.lineTo(0, -Math.min(totalDropFt, stepRise + throat + 0.25));
+      shape.closePath();
+
+      const strGeo = new THREE.ExtrudeGeometry(shape, { depth: stringerThk, bevelEnabled: false });
+      strGeo.rotateY(-Math.PI / 2); // Map +X shape to +Z forward run
+
+      for (let s = 0; s < numStringers; s++) {
+        const t = numStringers === 1 ? 0.5 : s / (numStringers - 1);
+        const sx = (-widthFt / 2 + 0.14) + t * (widthFt - 0.28);
+        const mesh = new THREE.Mesh(strGeo, mats.pt);
+        mesh.position.set(sx + stringerThk / 2, 0, 0);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        grp.add(mesh);
+      }
+
+      // 2. Two-Board Composite Treads & Fascia Risers
+      const treadBoardD = (treadRunFt + 0.08) / 2 - 0.02;
+      for (let i = 0; i < numTreads; i++) {
+        const yTop = -(i + 1) * stepRise;
+        const zStart = i * treadRunFt;
+        // Riser board (flush against sawtooth vertical face)
+        addBox(grp, widthFt, stepRise - 0.04, 0.06, 0, yTop + stepRise / 2, zStart - 0.03, mats.fascia);
+        // Optional LED riser strip
+        if (withLed) {
+          addBox(grp, 0.42, 0.055, 0.04, 0, yTop + stepRise - 0.16, zStart + 0.02, mats.led, false);
+        }
+        // 2-board tread
+        addBox(grp, widthFt + 0.08, 0.085, treadBoardD, 0, yTop + 0.042, zStart + treadBoardD / 2, mats.board);
+        addBox(grp, widthFt + 0.08, 0.085, treadBoardD, 0, yTop + 0.042, zStart + treadBoardD + 0.03 + treadBoardD / 2, mats.board);
+      }
+
+      // 3. Matching Sloped Stair Handrails
+      if (withRail) {
+        const railH = 3.0;
+        const slopeLen = Math.hypot(totalRun, totalDropFt);
+        const slopeAng = Math.atan2(totalDropFt, totalRun);
+        [-widthFt / 2 + 0.08, widthFt / 2 - 0.08].forEach(rx => {
+          // Top & bottom newel posts
+          addBox(grp, 0.18, railH + 0.25, 0.18, rx, railH / 2 - 0.1, 0.05, mats.blackMetal);
+          addBox(grp, 0.18, railH + 0.25, 0.18, rx, -totalDropFt + railH / 2, totalRun, mats.blackMetal);
+          // Sloped top rail
+          const topRail = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.14, slopeLen + 0.15), mats.blackMetal);
+          topRail.position.set(rx, railH - totalDropFt / 2, totalRun / 2);
+          topRail.rotation.x = slopeAng;
+          topRail.castShadow = true;
+          grp.add(topRail);
+          // Sloped stainless cables
+          for (let c = 1; c <= 7; c++) {
+            const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, slopeLen, 6), mats.steel);
+            cable.position.set(rx, (0.35 + (c - 1) * 0.36) - totalDropFt / 2, totalRun / 2);
+            cable.rotation.x = Math.PI / 2 + slopeAng;
+            grp.add(cable);
+          }
+        });
+      }
+
+      return grp;
+    }
+
+    function initThreeJS() {
+      const container = document.getElementById('three-container');
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xdbeafe);
+
+      camera = new THREE.PerspectiveCamera(42, container.clientWidth / Math.max(1, container.clientHeight), 0.2, 400);
+      renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      container.appendChild(renderer.domElement);
+
+      // Lights
+      hemiLight = new THREE.HemisphereLight(0xf0f9ff, 0x3b4d3b, 0.78);
+      scene.add(hemiLight);
+
+      sunLight = new THREE.DirectionalLight(0xfffbeb, 1.05);
+      sunLight.position.set(28, 38, 26);
+      sunLight.castShadow = true;
+      sunLight.shadow.mapSize.width = 2048;
+      sunLight.shadow.mapSize.height = 2048;
+      sunLight.shadow.camera.left = -36;
+      sunLight.shadow.camera.right = 36;
+      sunLight.shadow.camera.top = 36;
+      sunLight.shadow.camera.bottom = -36;
+      sunLight.shadow.bias = -0.0005;
+      scene.add(sunLight);
+
+      fillLight = new THREE.DirectionalLight(0x93c5fd, 0.32);
+      fillLight.position.set(-24, 16, -18);
+      scene.add(fillLight);
+
+      // Ground Plane
+      const groundMat = new THREE.MeshStandardMaterial({ color: 0x6b8e68, roughness: 0.95, transparent: true, opacity: 1.0 });
+      groundMesh = new THREE.Mesh(new THREE.PlaneGeometry(240, 240), groundMat);
+      groundMesh.rotation.x = -Math.PI / 2;
+      groundMesh.receiveShadow = true;
+      scene.add(groundMesh);
+
+      // Subsurface Frost Line Plane (visible in X-Ray / Piles mode)
+      const frostMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.22, side: THREE.DoubleSide });
+      frostPlaneMesh = new THREE.Mesh(new THREE.PlaneGeometry(46, 46), frostMat);
+      frostPlaneMesh.rotation.x = -Math.PI / 2;
+      frostPlaneMesh.visible = false;
+      scene.add(frostPlaneMesh);
+
+      deckGroup = new THREE.Group();
+      envGroup = new THREE.Group();
+      scene.add(deckGroup);
+      scene.add(envGroup);
+
+      // Orbit / Pan / Zoom Controls (Mouse + Touch)
+      const dom = renderer.domElement;
+      dom.addEventListener('contextmenu', e => e.preventDefault());
+      dom.addEventListener('mousedown', e => {
+        camCtrl.dragging = true;
+        camCtrl.button = e.button;
+        camCtrl.lastX = e.clientX;
+        camCtrl.lastY = e.clientY;
+      });
+      window.addEventListener('mouseup', () => { camCtrl.dragging = false; });
+      window.addEventListener('mousemove', e => {
+        if (!camCtrl.dragging) return;
+        const dx = e.clientX - camCtrl.lastX;
+        const dy = e.clientY - camCtrl.lastY;
+        camCtrl.lastX = e.clientX;
+        camCtrl.lastY = e.clientY;
+        if (camCtrl.button === 2 || e.shiftKey) {
+          const panSpeed = camCtrl.radius * 0.0014;
+          const right = new THREE.Vector3(Math.cos(camCtrl.theta), 0, -Math.sin(camCtrl.theta));
+          camCtrl.target.addScaledVector(right, -dx * panSpeed);
+          camCtrl.target.y = Math.max(-4, Math.min(20, camCtrl.target.y + dy * panSpeed));
+        } else {
+          camCtrl.theta -= dx * 0.007;
+          camCtrl.phi = Math.max(0.18, Math.min(Math.PI - 0.18, camCtrl.phi - dy * 0.007));
+        }
+        updateCameraPos();
+      });
+      dom.addEventListener('wheel', e => {
+        e.preventDefault();
+        camCtrl.radius = Math.max(10, Math.min(85, camCtrl.radius + e.deltaY * 0.025));
+        updateCameraPos();
+      }, { passive: false });
+
+      // Touch Orbit
+      let touchDist = 0;
+      dom.addEventListener('touchstart', e => {
+        if (e.touches.length === 1) {
+          camCtrl.dragging = true;
+          camCtrl.lastX = e.touches[0].clientX;
+          camCtrl.lastY = e.touches[0].clientY;
+        } else if (e.touches.length === 2) {
+          camCtrl.dragging = false;
+          touchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        }
+      }, { passive: true });
+      dom.addEventListener('touchmove', e => {
+        if (e.touches.length === 1 && camCtrl.dragging) {
+          const dx = e.touches[0].clientX - camCtrl.lastX;
+          const dy = e.touches[0].clientY - camCtrl.lastY;
+          camCtrl.lastX = e.touches[0].clientX;
+          camCtrl.lastY = e.touches[0].clientY;
+          camCtrl.theta -= dx * 0.008;
+          camCtrl.phi = Math.max(0.2, Math.min(Math.PI - 0.2, camCtrl.phi - dy * 0.008));
+          updateCameraPos();
+        } else if (e.touches.length === 2) {
+          const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+          camCtrl.radius = Math.max(10, Math.min(85, camCtrl.radius - (d - touchDist) * 0.06));
+          touchDist = d;
+          updateCameraPos();
+        }
+      }, { passive: true });
+      dom.addEventListener('touchend', () => { camCtrl.dragging = false; });
+
+      updateCameraPos();
+    }
+
+    function updateCameraPos() {
+      if (!camera) return;
+      camera.position.x = camCtrl.target.x + camCtrl.radius * Math.sin(camCtrl.phi) * Math.sin(camCtrl.theta);
+      camera.position.y = camCtrl.target.y + camCtrl.radius * Math.cos(camCtrl.phi);
+      camera.position.z = camCtrl.target.z + camCtrl.radius * Math.sin(camCtrl.phi) * Math.cos(camCtrl.theta);
+      camera.lookAt(camCtrl.target);
+    }
+
+    function applyLighting3D() {
+      if (!scene) return;
+      if (state.lighting === 'day') {
+        scene.background = new THREE.Color(0xdbeafe);
+        sunLight.color.setHex(0xfffbeb); sunLight.intensity = 1.05; sunLight.position.set(28, 38, 26);
+        hemiLight.intensity = 0.78;
+      } else if (state.lighting === 'golden') {
+        scene.background = new THREE.Color(0xfdba74);
+        sunLight.color.setHex(0xffedd5); sunLight.intensity = 1.2; sunLight.position.set(42, 14, 18);
+        hemiLight.intensity = 0.55;
+      } else {
+        scene.background = new THREE.Color(0x0b1220);
+        sunLight.color.setHex(0x60a5fa); sunLight.intensity = 0.35; sunLight.position.set(-22, 26, 20);
+        hemiLight.intensity = 0.28;
+      }
+    }
+
+    function rebuild3DScene(model) {
+      if (!scene || !model) return;
+      while (deckGroup.children.length) deckGroup.remove(deckGroup.children[0]);
+      while (envGroup.children.length) envGroup.remove(envGroup.children[0]);
+
+      const st = state;
+      const H = st.height;
+      const boardThick = 0.085;
+
+      // Ground X-Ray & Frost Plane
+      groundMesh.material.opacity = st.xray ? 0.22 : 1.0;
+      frostPlaneMesh.visible = st.xray;
+      frostPlaneMesh.position.set((model.bounds.minX + model.bounds.maxX) / 2, -st.frostDepthIn / 12, (model.bounds.minZ + model.bounds.maxZ) / 2);
+
+      // Materials
+      const boardTex = createWoodTexture(model.mat.color, model.mat.grain);
+      boardTex.repeat.set(3, 3);
+      const fasciaTex = createWoodTexture(model.mat.fascia, '#24150d');
+      const ptTex = createWoodTexture('#c4ab7d', '#9e8559');
+
+      const mats = {
+        board: new THREE.MeshStandardMaterial({ map: boardTex, roughness: 0.72, transparent: st.xray, opacity: st.xray ? 0.28 : 1.0 }),
+        fascia: new THREE.MeshStandardMaterial({ map: fasciaTex, roughness: 0.65, transparent: st.xray, opacity: st.xray ? 0.35 : 1.0 }),
+        pt: new THREE.MeshStandardMaterial({ map: ptTex, roughness: 0.85 }),
+        blackMetal: new THREE.MeshStandardMaterial({ color: 0x161920, roughness: 0.35, metalness: 0.75 }),
+        steel: new THREE.MeshStandardMaterial({ color: 0xdbe2ea, roughness: 0.25, metalness: 0.9 }),
+        galvSteel: new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.35, metalness: 0.8 }),
+        helixGold: new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.35, metalness: 0.65 }),
+        concrete: new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.95 }),
+        glass: new THREE.MeshPhysicalMaterial({ color: 0xbae6fd, transparent: true, opacity: 0.35, roughness: 0.1, metalness: 0.1 }),
+        led: new THREE.MeshBasicMaterial({ color: st.lighting === 'twilight' ? 0xfef08a : 0xfde68a })
+      };
+
+      // 1. HOUSE BACKDROP (Dynamic 2-Story Walkout)
+      if (st.houseBackdrop) {
+        const houseW = Math.max(30, model.bounds.width + 14);
+        const houseH = Math.max(18, H + 10.5);
+        const houseMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.85 });
+        const trimMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.6 });
+        const glassMat = new THREE.MeshStandardMaterial({ color: 0x155e75, roughness: 0.2, metalness: 0.4 });
+
+        addBox(envGroup, houseW, houseH, 12, (model.bounds.minX + model.bounds.maxX) / 2, houseH / 2, model.bounds.minZ - 6.05, houseMat);
+        // Sliding glass door at deck level
+        const doorX = (model.bounds.minX + model.bounds.maxX) / 2;
+        addBox(envGroup, 6.4, 6.8, 0.25, doorX, H + 3.4, model.bounds.minZ - 0.05, trimMat);
+        addBox(envGroup, 6.0, 6.4, 0.28, doorX, H + 3.4, model.bounds.minZ - 0.03, glassMat);
+        addBox(envGroup, 0.16, 6.4, 0.32, doorX, H + 3.4, model.bounds.minZ - 0.02, trimMat);
+        // Lower walkout basement windows when deck is elevated
+        if (H >= 6.5) {
+          [-6.5, 0, 6.5].forEach(ox => {
+            addBox(envGroup, 3.6, 3.2, 0.22, doorX + ox, 3.4, model.bounds.minZ - 0.05, trimMat);
+            addBox(envGroup, 3.2, 2.8, 0.25, doorX + ox, 3.4, model.bounds.minZ - 0.03, glassMat);
+          });
+        }
+      }
+
+      // 2. POLYGON DECKING SURFACE (Extruded Shape)
+      const deckShape = new THREE.Shape();
+      model.verts.forEach((v, idx) => {
+        if (idx === 0) deckShape.moveTo(v.x, -v.z);
+        else deckShape.lineTo(v.x, -v.z);
+      });
+      deckShape.closePath();
+
+      const surfGeo = new THREE.ExtrudeGeometry(deckShape, { depth: boardThick, bevelEnabled: false });
+      surfGeo.rotateX(-Math.PI / 2);
+      const surfMesh = new THREE.Mesh(surfGeo, mats.board);
+      surfMesh.position.y = H - boardThick;
+      surfMesh.castShadow = true;
+      surfMesh.receiveShadow = true;
+      deckGroup.add(surfMesh);
+
+      // 3. RIM JOISTS & FASCIA ALONG ALL EDGES
+      model.edges.forEach(edge => {
+        const dx = edge.b.x - edge.a.x, dz = edge.b.z - edge.a.z;
+        const len = edge.len;
+        const ang = Math.atan2(dx, dz);
+        const mx = (edge.a.x + edge.b.x) / 2, mz = (edge.a.z + edge.b.z) / 2;
+        const rim = new THREE.Mesh(new THREE.BoxGeometry(0.14, model.joistDepthFt + 0.08, len + 0.08), edge.meta.isLedger ? mats.pt : mats.fascia);
+        rim.position.set(mx, H - boardThick - model.joistDepthFt / 2, mz);
+        rim.rotation.y = ang;
+        rim.castShadow = true;
+        deckGroup.add(rim);
+      });
+
+      // 4. INTERIOR FRAMING JOISTS
+      model.joists.forEach(j => {
+        addBox(deckGroup, 0.12, model.joistDepthFt, j.len - 0.1, j.x, H - boardThick - model.joistDepthFt / 2, (j.z0 + j.z1) / 2, mats.pt);
+      });
+
+      // 5. DROP BEAMS, 6x6 POSTS, HELICAL PILES & BRACING
+      const beamY = H - boardThick - model.joistDepthFt - model.beamDepthFt / 2;
+      model.beams.forEach(bm => {
+        addBox(deckGroup, bm.len, model.beamDepthFt, 0.13 * model.beamPlies, (bm.x0 + bm.x1) / 2, beamY, bm.z, mats.pt);
+      });
+
+      model.piles.forEach(p => {
+        // 6x6 Vertical Support Post
+        addBox(deckGroup, 0.46, p.topY, 0.46, p.x, p.topY / 2 + 0.1, p.z, mats.pt);
+
+        // Galvanized Simpson-style Post-to-Beam Connector Cap (BCS/CCQ)
+        // High, compact 4x6 Mitered Y-Shape Knee Braces (neighbor-aware so they NEVER overlap)
+        if (st.bracingStyle !== 'none' && H >= 4.5 && p.topY >= 2.8) {
+          const beamBotY = p.topY + 0.08;
+          const postHalf = 0.23;
+          const braceThickZ = 0.34;
+          const braceFace = 0.34; // Clean 4x6 diagonal timber profile
+          const d = braceFace * Math.SQRT2; // Horizontal/vertical miter projection at 45°
+          const maxLeg = Math.min(1.60, Math.max(0.95, p.topY * 0.21));
+          const minGapBetweenBraces = 0.60; // Guaranteed open space between opposing Y-braces
+
+          // Find nearest adjacent posts on the same beam row
+          let leftNeighborDist = Infinity;
+          let rightNeighborDist = Infinity;
+          model.piles.forEach(other => {
+            if (other === p || Math.abs(other.z - p.z) > 0.75) return;
+            const dx = other.x - p.x;
+            if (dx < 0 && -dx < leftNeighborDist) leftNeighborDist = -dx;
+            if (dx > 0 && dx < rightNeighborDist) rightNeighborDist = dx;
+          });
+
+          function addMiteredKneeBrace(dirX, distToBeamEnd, distToNeighbor) {
+            const maxBeamLeg = (distToBeamEnd - 0.08) - postHalf - d;
+            const maxNeighborLeg = isFinite(distToNeighbor)
+              ? (distToNeighbor - minGapBetweenBraces) / 2 - postHalf - d
+              : Infinity;
+            const leg = Math.min(maxLeg, maxBeamLeg, maxNeighborLeg);
+            if (leg < 0.55) return;
+
+            const s = new THREE.Shape();
+            // Flush vertical cut against 6x6 post & flush horizontal cut against beam underside
+            s.moveTo(dirX * postHalf, -leg - d);
+            s.lineTo(dirX * postHalf, -leg);
+            s.lineTo(dirX * (postHalf + leg), 0);
+            s.lineTo(dirX * (postHalf + leg + d), 0);
+            s.closePath();
+
+            const geo = new THREE.ExtrudeGeometry(s, { depth: braceThickZ, bevelEnabled: false });
+            const mesh = new THREE.Mesh(geo, mats.pt);
+            mesh.position.set(p.x, beamBotY, p.z - braceThickZ / 2);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            deckGroup.add(mesh);
+          }
+
+          const distLeftEnd = p.x - p.beamX0;
+          const distRightEnd = p.beamX1 - p.x;
+          addMiteredKneeBrace(-1, distLeftEnd, leftNeighborDist);
+          addMiteredKneeBrace(1, distRightEnd, rightNeighborDist);
+        }
+      });
+
+      // Optional Full Lateral X-Bracing (only when user explicitly selects 'xbrace')
+      if (st.bracingStyle === 'xbrace' && H >= 8.0) {
+        const rows = {};
+        model.piles.forEach(p => {
+          if (!rows[p.beamRow]) rows[p.beamRow] = [];
+          rows[p.beamRow].push(p);
+        });
+        Object.values(rows).forEach(rowPiles => {
+          rowPiles.sort((a, b) => a.x - b.x);
+          for (let i = 0; i < rowPiles.length - 1; i++) {
+            const p1 = rowPiles[i], p2 = rowPiles[i + 1];
+            const span = p2.x - p1.x;
+            const brH = Math.min(p1.topY - 0.9, 8.2);
+            if (span < 2 || brH < 3) continue;
+            const diagLen = Math.hypot(span, brH) - 0.25;
+            const ang = Math.atan2(brH, span);
+            const midX = (p1.x + p2.x) / 2;
+            const midY = 0.55 + brH / 2;
+            [1, -1].forEach(sign => {
+              const xb = new THREE.Mesh(new THREE.BoxGeometry(diagLen, 0.34, 0.12), mats.pt);
+              xb.position.set(midX, midY, p1.z + sign * 0.26);
+              xb.rotation.z = sign * ang;
+              xb.castShadow = true;
+              deckGroup.add(xb);
+            });
+          }
+        });
+      }
+
+      // 6. RAILING SYSTEM (Reusable helper for both main deck & stair intermediate landings)
+      const railH = 3.0;
+      function buildRailingSegment3D(parent, x1, z1, x2, z2, baseY) {
+        const dx = x2 - x1, dz = z2 - z1;
+        const len = Math.hypot(dx, dz);
+        if (len < 0.25) return;
+        const postMat = st.railing === 'composite' ? mats.fascia : mats.blackMetal;
+        const postW = st.railing === 'composite' ? 0.34 : 0.18;
+        const segGrp = new THREE.Group();
+        segGrp.position.set((x1 + x2) / 2, baseY, (z1 + z2) / 2);
+        segGrp.rotation.y = Math.atan2(dx, dz);
+
+        const spans = Math.max(1, Math.ceil(len / 6));
+        for (let i = 0; i <= spans; i++) {
+          const pz = -len / 2 + (i / spans) * len;
+          addBox(segGrp, postW, railH, postW, 0, railH / 2, pz, postMat);
+          if (st.ledLights) {
+            addBox(segGrp, postW + 0.05, 0.07, postW + 0.05, 0, railH + 0.035, pz, mats.led, false);
+            addBox(segGrp, postW + 0.08, 0.05, postW + 0.08, 0, railH + 0.09, pz, mats.blackMetal);
+          }
+        }
+        if (st.railing !== 'glass') addBox(segGrp, postW * 0.9, 0.14, len, 0, railH - 0.07, 0, postMat);
+        if (st.drinkRail) addBox(segGrp, 0.45, 0.08, len + 0.12, 0, railH + 0.04, 0, mats.fascia);
+
+        if (st.railing === 'cable') {
+          for (let r = 1; r <= 9; r++) {
+            const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, len, 6), mats.steel);
+            cable.rotation.x = Math.PI / 2;
+            cable.position.set(0, 0.26 + (r - 1) * 0.29, 0);
+            segGrp.add(cable);
+          }
+        } else if (st.railing === 'aluminum' || st.railing === 'composite') {
+          addBox(segGrp, postW * 0.75, 0.11, len, 0, 0.24, 0, postMat);
+          const bw = st.railing === 'composite' ? 0.1 : 0.055;
+          for (let bz = -len / 2 + 0.34; bz <= len / 2 - 0.34; bz += 0.34) {
+            addBox(segGrp, bw, railH - 0.36, bw, 0, 0.24 + (railH - 0.36) / 2, bz, mats.blackMetal);
+          }
+        } else if (st.railing === 'glass') {
+          addBox(segGrp, 0.04, railH - 0.28, len - 0.18, 0, 0.2 + (railH - 0.28) / 2, 0, mats.glass, false);
+        }
+        parent.add(segGrp);
+      }
+
+      if (st.railing !== 'none') {
+        model.railSegments.forEach(seg => buildRailingSegment3D(deckGroup, seg.x1, seg.z1, seg.x2, seg.z2, H));
+      }
+
+      // 7. PERFECT SAWTOOTH STAIRCASE (Straight or Intermediate Landing / 90° L-Turn)
+      if (model.stairSpec) {
+        const s = model.stairSpec;
+        const stairRoot = new THREE.Group();
+        stairRoot.position.set(s.anchorX, s.topY, s.anchorZ);
+        stairRoot.rotation.y = s.yaw;
+
+        const withRail = st.railing !== 'none';
+        if (!s.useLanding) {
+          const flight = buildStairFlightGroup(s.widthFt, s.numRisers, s.topY, s.treadRunIn / 12, s.numStringers, mats, withRail, st.ledLights);
+          stairRoot.add(flight);
+        } else {
+          // Upper flight to intermediate landing
+          const upperDrop = s.topY - s.landingY;
+          const upperFlight = buildStairFlightGroup(s.widthFt, s.upperRisers, upperDrop, s.treadRunIn / 12, s.numStringers, mats, withRail, st.ledLights);
+          stairRoot.add(upperFlight);
+
+          // Intermediate Landing Platform (PT frame strictly BELOW decking board to eliminate Z-fighting!)
+          const L = s.landingSize;
+          const lCenterZ = s.upperRunFt + L / 2;
+          const lY = -upperDrop;
+          const frameH = 0.62;
+          addBox(stairRoot, L - 0.08, frameH, L - 0.08, 0, lY - boardThick - frameH / 2, lCenterZ, mats.pt);
+          addBox(stairRoot, L + 0.1, boardThick, L + 0.1, 0, lY - boardThick / 2, lCenterZ, mats.board);
+          // Landing support posts
+          [[-L / 2 + 0.3, s.upperRunFt + 0.3], [L / 2 - 0.3, s.upperRunFt + 0.3], [-L / 2 + 0.3, s.upperRunFt + L - 0.3], [L / 2 - 0.3, s.upperRunFt + L - 0.3]].forEach(([lx, lz]) => {
+            const pH = Math.max(0.2, s.landingY - boardThick - frameH);
+            addBox(stairRoot, 0.38, pH, 0.38, lx, lY - boardThick - frameH - pH / 2, lz, mats.pt);
+          });
+
+          // Full IRC Guardrails on all open edges of the Intermediate Landing!
+          if (withRail) {
+            const xL = -L / 2 + 0.09, xR = L / 2 - 0.09;
+            const zBack = s.upperRunFt + 0.09, zFront = s.upperRunFt + L - 0.09;
+            buildRailingSegment3D(stairRoot, xL, zBack, xL, zFront, lY);
+            if (s.landingType === 'lturn') {
+              buildRailingSegment3D(stairRoot, xL, zFront, xR, zFront, lY);
+            } else {
+              buildRailingSegment3D(stairRoot, xR, zBack, xR, zFront, lY);
+            }
+          }
+
+          // Lower flight from landing to grade
+          const lowerFlight = buildStairFlightGroup(s.widthFt, s.lowerRisers, s.landingY, s.treadRunIn / 12, s.numStringers, mats, withRail, st.ledLights);
+          if (s.landingType === 'lturn') {
+            lowerFlight.position.set(L / 2, lY, lCenterZ);
+            lowerFlight.rotation.y = Math.PI / 2;
+          } else {
+            lowerFlight.position.set(0, lY, s.upperRunFt + L);
+          }
+          stairRoot.add(lowerFlight);
+        }
+        deckGroup.add(stairRoot);
+      }
+    }
+
+    function animate3D() {
+      requestAnimationFrame(animate3D);
+      if (renderer && scene && camera) renderer.render(scene, camera);
+    }
+
+    /* =====================================================================
+     * 5. INTERACTIVE 2D POLYGON + BEAM & HELICAL PILE EDITOR
+     * ===================================================================== */
+    const edCtrl = {
+      scale: 22,
+      originX: 300,
+      originY: 160,
+      dragMode: null, // 'vertex' | 'edge' | 'beam' | 'pile' | null
+      dragIdx: -1,
+      dragStartWorld: null,
+      dragOrigVerts: null,
+      snapGuide: null,
+      pillRects: [],
+      midHandles: []
+    };
+
+    function worldToEd(wx, wz) {
+      return { x: edCtrl.originX + wx * edCtrl.scale, y: edCtrl.originY + wz * edCtrl.scale };
+    }
+    function edToWorld(px, py) {
+      return { x: (px - edCtrl.originX) / edCtrl.scale, z: (py - edCtrl.originY) / edCtrl.scale };
+    }
+
+    function renderPolygonEditor() {
+      const canvas = document.getElementById('editor-canvas');
+      if (!canvas || canvas.offsetParent === null) return;
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+        canvas.width = Math.round(w * dpr);
+        canvas.height = Math.round(h * dpr);
+      }
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      // Fit polygon nicely in view
+      const b = polygonBounds(state.vertices);
+      edCtrl.scale = Math.max(12, Math.min(34, Math.min((w - 150) / Math.max(10, b.width + 6), (h - 160) / Math.max(10, b.depth + 6))));
+      edCtrl.originX = w / 2 - ((b.minX + b.maxX) / 2) * edCtrl.scale;
+      edCtrl.originY = h / 2 - ((b.minZ + b.maxZ) / 2) * edCtrl.scale;
+
+      // Clear & Grid
+      ctx.fillStyle = '#080d17';
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.strokeStyle = 'rgba(51, 65, 85, 0.35)';
+      ctx.lineWidth = 1;
+      const stepPx = edCtrl.scale;
+      for (let gx = edCtrl.originX % stepPx; gx < w; gx += stepPx) {
+        ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, h); ctx.stroke();
+      }
+      for (let gy = edCtrl.originY % stepPx; gy < h; gy += stepPx) {
+        ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
+      }
+
+      // House Wall Reference Band
+      const hTop = worldToEd(b.minX - 6, b.minZ - 3);
+      const hBot = worldToEd(b.maxX + 6, b.minZ);
+      ctx.fillStyle = 'rgba(30, 41, 59, 0.55)';
+      ctx.fillRect(hTop.x, hTop.y, hBot.x - hTop.x, hBot.y - hTop.y);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '600 10px "JetBrains Mono"';
+      ctx.textAlign = 'center';
+      ctx.fillText('EXISTING HOUSE WALL', (hTop.x + hBot.x) / 2, hBot.y - 10);
+
+      // Deck Polygon Fill
+      ctx.beginPath();
+      state.vertices.forEach((v, i) => {
+        const p = worldToEd(v.x, v.z);
+        if (i === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      });
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.11)';
+      ctx.fill();
+
+      // Drop Beams & Helical Piles inside polygon
+      if (currentModel) {
+        const isPileMode = state.editLayer === 'piles';
+        currentModel.beams.forEach((bm, bIdx) => {
+          const p1 = worldToEd(bm.x0, bm.z);
+          const p2 = worldToEd(bm.x1, bm.z);
+          ctx.strokeStyle = isPileMode ? '#fbbf24' : 'rgba(251, 191, 36, 0.35)';
+          ctx.lineWidth = isPileMode ? 5 : 2.5;
+          ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+          if (isPileMode) {
+            ctx.fillStyle = '#fbbf24';
+            ctx.font = '600 9.5px "JetBrains Mono"';
+            ctx.textAlign = 'left';
+            ctx.fillText(`BEAM ${bIdx + 1} (Z=${bm.z.toFixed(1)}')`, p2.x + 8, p2.y + 3);
+          }
+        });
+        currentModel.piles.forEach(pile => {
+          const pp = worldToEd(pile.x, pile.z);
+          ctx.beginPath();
+          ctx.arc(pp.x, pp.y, isPileMode ? 7.5 : 4.5, 0, Math.PI * 2);
+          ctx.fillStyle = isPileMode ? '#fbbf24' : 'rgba(251, 191, 36, 0.8)';
+          ctx.fill();
+          if (isPileMode) {
+            ctx.strokeStyle = '#070a10';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = '#fef08a';
+            ctx.font = '700 9px "JetBrains Mono"';
+            ctx.textAlign = 'center';
+            ctx.fillText(pile.id, pp.x, pp.y - 11);
+          }
+        });
+      }
+
+      // Snap Guide Line
+      if (edCtrl.snapGuide) {
+        const g1 = worldToEd(edCtrl.snapGuide.x1, edCtrl.snapGuide.z1);
+        const g2 = worldToEd(edCtrl.snapGuide.x2, edCtrl.snapGuide.z2);
+        ctx.save();
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = '#22d3ee';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(g1.x, g1.y); ctx.lineTo(g2.x, g2.y); ctx.stroke();
+        ctx.restore();
+      }
+
+      // Edges, Midpoint '+' Handles, & Dimension Pills
+      edCtrl.pillRects = [];
+      edCtrl.midHandles = [];
+      const n = state.vertices.length;
+      for (let i = 0; i < n; i++) {
+        const a = state.vertices[i], bV = state.vertices[(i + 1) % n];
+        const pa = worldToEd(a.x, a.z), pb = worldToEd(bV.x, bV.z);
+        const meta = state.edgeMeta[i] || { isLedger: false, railing: true, hasStairs: false };
+        const isSel = (i === state.selectedEdge && state.editLayer === 'shape');
+        const len = Math.hypot(bV.x - a.x, bV.z - a.z);
+
+        ctx.strokeStyle = meta.isLedger ? '#f59e0b' : (meta.hasStairs ? '#10b981' : (isSel ? '#22d3ee' : (meta.railing ? '#38bdf8' : '#64748b')));
+        ctx.lineWidth = isSel ? 3.5 : 2.2;
+        if (!meta.railing && !meta.isLedger) ctx.setLineDash([6, 4]);
+        ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
+        ctx.setLineDash([]);
+
+        const mx = (pa.x + pb.x) / 2, my = (pa.y + pb.y) / 2;
+        if (state.editLayer === 'shape') {
+          edCtrl.midHandles.push({ idx: i, x: mx, y: my });
+          ctx.fillStyle = '#0f172a';
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath(); ctx.arc(mx, my, 8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#38bdf8';
+          ctx.font = '700 11px Inter';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('+', mx, my + 0.5);
+        }
+
+        // Dimension Pill
+        const dx = bV.x - a.x, dz = bV.z - a.z;
+        let nx = len > 0.01 ? dz / len : 0;
+        let nz = len > 0.01 ? -dx / len : 1;
+        if (pointInPolygon(state.vertices, (a.x + bV.x) / 2 + nx * 0.3, (a.z + bV.z) / 2 + nz * 0.3)) {
+          nx = -nx; nz = -nz;
+        }
+        const pillX = mx + nx * 28;
+        const pillY = my + nz * 28;
+        const roleTag = meta.hasStairs ? ' 🪜' : (meta.isLedger ? ' 🏠' : (meta.railing ? ' ▬' : ' ⊘'));
+        const label = `${formatFtIn(len)}${roleTag}`;
+        ctx.font = '600 10px "JetBrains Mono"';
+        const tw = ctx.measureText(label).width + 14;
+        const th = 20;
+        ctx.fillStyle = isSel ? '#083344' : '#0f172a';
+        ctx.strokeStyle = isSel ? '#22d3ee' : '#334155';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.roundRect(pillX - tw / 2, pillY - th / 2, tw, th, 6);
+        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = isSel ? '#67e8f9' : '#e2e8f0';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(label, pillX, pillY + 0.5);
+        edCtrl.pillRects.push({ idx: i, x: pillX - tw / 2, y: pillY - th / 2, w: tw, h: th, cx: pillX, cy: pillY });
+      }
+
+      // Vertices (only interactive in Shape mode)
+      if (state.editLayer === 'shape') {
+        state.vertices.forEach((v, i) => {
+          const p = worldToEd(v.x, v.z);
+          const isSel = i === state.selectedVertex;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, isSel ? 8 : 6, 0, Math.PI * 2);
+          ctx.fillStyle = isSel ? '#22d3ee' : '#f8fafc';
+          ctx.fill();
+          ctx.strokeStyle = '#070a10';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        });
+      }
+
+      // Update Edge Bar Indicator
+      document.getElementById('ed-bar-idx').textContent = `E${state.selectedEdge + 1}`;
+    }
+
+    function distToSegment(px, py, x1, y1, x2, y2) {
+      const l2 = (x2 - x1) ** 2 + (y2 - y1) ** 2;
+      if (l2 === 0) return Math.hypot(px - x1, py - y1);
+      let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+      t = Math.max(0, Math.min(1, t));
+      return Math.hypot(px - (x1 + t * (x2 - x1)), py - (y1 + t * (y2 - y1)));
+    }
+
+    function initPolygonEditorEvents() {
+      const canvas = document.getElementById('editor-canvas');
+      const pop = document.getElementById('edge-len-popover');
+      const inpLen = document.getElementById('inp-exact-len');
+      let editingEdgeIdx = -1;
+
+      function getPos(e) {
+        const r = canvas.getBoundingClientRect();
+        return { x: e.clientX - r.left, y: e.clientY - r.top };
+      }
+
+      canvas.addEventListener('contextmenu', e => e.preventDefault());
+      canvas.addEventListener('mousedown', e => {
+        pop.classList.add('hidden');
+        const pt = getPos(e);
+
+        // ---- BEAMS & HELICAL PILES EDITING MODE ----
+        if (state.editLayer === 'piles' && currentModel) {
+          for (let i = 0; i < currentModel.piles.length; i++) {
+            const p = currentModel.piles[i];
+            const pp = worldToEd(p.x, p.z);
+            if (Math.hypot(pt.x - pp.x, pt.y - pp.y) <= 13) {
+              if (!Array.isArray(state.customPiles)) {
+                state.customPiles = currentModel.piles.map(x => ({ x: x.x, z: x.z, beamRow: x.beamRow }));
+              }
+              if (e.button === 2) {
+                if (state.customPiles.length > 2) {
+                  state.customPiles.splice(i, 1);
+                  showToast('Helical pile removed.', 'info');
+                  updateAll();
+                } else {
+                  showToast('Minimum 2 piles required.', 'warn');
+                }
+                return;
+              }
+              edCtrl.dragMode = 'pile';
+              edCtrl.dragIdx = i;
+              return;
+            }
+          }
+
+          for (let i = 0; i < currentModel.beams.length; i++) {
+            const bm = currentModel.beams[i];
+            const p1 = worldToEd(bm.x0, bm.z), p2 = worldToEd(bm.x1, bm.z);
+            if (pt.x >= Math.min(p1.x, p2.x) - 10 && pt.x <= Math.max(p1.x, p2.x) + 10 && Math.abs(pt.y - p1.y) <= 10) {
+              if (!Array.isArray(state.customBeamZs)) {
+                state.customBeamZs = currentModel.beams.map(b => b.z);
+              }
+              edCtrl.dragMode = 'beam';
+              edCtrl.dragIdx = bm.row;
+              return;
+            }
+          }
+          return;
+        }
+
+        // ---- SHAPE & RAILING EDITING MODE ----
+        // 1. Check Dimension Pill Click
+        for (const pill of edCtrl.pillRects) {
+          if (pt.x >= pill.x && pt.x <= pill.x + pill.w && pt.y >= pill.y && pt.y <= pill.y + pill.h) {
+            editingEdgeIdx = pill.idx;
+            state.selectedEdge = pill.idx;
+            const a = state.vertices[pill.idx], b = state.vertices[(pill.idx + 1) % state.vertices.length];
+            inpLen.value = Math.hypot(b.x - a.x, b.z - a.z).toFixed(2);
+            pop.style.left = `${Math.max(12, Math.min(canvas.clientWidth - 240, pill.cx - 100))}px`;
+            pop.style.top = `${Math.max(56, Math.min(canvas.clientHeight - 90, pill.cy - 20))}px`;
+            pop.classList.remove('hidden');
+            inpLen.focus();
+            renderPolygonEditor();
+            return;
+          }
+        }
+
+        // 2. Check Midpoint '+' Split Handle
+        for (const mh of edCtrl.midHandles) {
+          if (Math.hypot(pt.x - mh.x, pt.y - mh.y) <= 11) {
+            const i = mh.idx;
+            const a = state.vertices[i], b = state.vertices[(i + 1) % state.vertices.length];
+            state.vertices.splice(i + 1, 0, { x: Number(((a.x + b.x) / 2).toFixed(2)), z: Number(((a.z + b.z) / 2).toFixed(2)) });
+            state.edgeMeta.splice(i + 1, 0, { isLedger: false, railing: true, hasStairs: false });
+            state.selectedVertex = i + 1;
+            state.selectedEdge = i + 1;
+            showToast('Split edge — drag the new corner to shape your deck!', 'success');
+            updateAll();
+            return;
+          }
+        }
+
+        // 3. Check Vertex Hit
+        for (let i = 0; i < state.vertices.length; i++) {
+          const p = worldToEd(state.vertices[i].x, state.vertices[i].z);
+          if (Math.hypot(pt.x - p.x, pt.y - p.y) <= 12) {
+            edCtrl.dragMode = 'vertex';
+            edCtrl.dragIdx = i;
+            state.selectedVertex = i;
+            state.selectedEdge = i;
+            renderPolygonEditor();
+            return;
+          }
+        }
+
+        // 4. Check Edge Hit (drag entire edge)
+        for (let i = 0; i < state.vertices.length; i++) {
+          const pa = worldToEd(state.vertices[i].x, state.vertices[i].z);
+          const pb = worldToEd(state.vertices[(i + 1) % state.vertices.length].x, state.vertices[(i + 1) % state.vertices.length].z);
+          if (distToSegment(pt.x, pt.y, pa.x, pa.y, pb.x, pb.y) <= 9) {
+            edCtrl.dragMode = 'edge';
+            edCtrl.dragIdx = i;
+            edCtrl.dragStartWorld = edToWorld(pt.x, pt.y);
+            edCtrl.dragOrigVerts = state.vertices.map(v => ({ ...v }));
+            state.selectedEdge = i;
+            state.selectedVertex = i;
+            renderPolygonEditor();
+            return;
+          }
+        }
+      });
+
+      window.addEventListener('mousemove', e => {
+        if (!edCtrl.dragMode) return;
+        const pt = getPos(e);
+        const w = edToWorld(pt.x, pt.y);
+
+        if (edCtrl.dragMode === 'pile') {
+          if (state.gridSnap > 0) {
+            w.x = Math.round(w.x / state.gridSnap) * state.gridSnap;
+            w.z = Math.round(w.z / state.gridSnap) * state.gridSnap;
+          }
+          const b = polygonBounds(state.vertices);
+          w.x = Math.max(b.minX + 0.5, Math.min(b.maxX - 0.5, w.x));
+          w.z = Math.max(b.minZ + 0.5, Math.min(b.maxZ - 0.5, w.z));
+          if (currentModel) {
+            for (const bm of currentModel.beams) {
+              if (Math.abs(w.z - bm.z) < 0.65) {
+                w.z = bm.z;
+                state.customPiles[edCtrl.dragIdx].beamRow = bm.row;
+                break;
+              }
+            }
+          }
+          state.customPiles[edCtrl.dragIdx].x = Number(w.x.toFixed(2));
+          state.customPiles[edCtrl.dragIdx].z = Number(w.z.toFixed(2));
+          updateAll();
+          return;
+        }
+
+        if (edCtrl.dragMode === 'beam') {
+          let newZ = state.gridSnap > 0 ? Math.round(w.z / state.gridSnap) * state.gridSnap : w.z;
+          const b = polygonBounds(state.vertices);
+          newZ = Number(Math.max(b.minZ + 0.75, Math.min(b.maxZ - 0.75, newZ)).toFixed(2));
+          const oldZ = state.customBeamZs[edCtrl.dragIdx];
+          state.customBeamZs[edCtrl.dragIdx] = newZ;
+          if (Array.isArray(state.customPiles)) {
+            state.customPiles.forEach(cp => {
+              if (cp.beamRow === edCtrl.dragIdx || Math.abs(cp.z - oldZ) < 0.4) cp.z = newZ;
+            });
+          }
+          updateAll();
+          return;
+        }
+
+        if (edCtrl.dragMode === 'vertex') {
+          let nx = w.x, nz = w.z;
+          edCtrl.snapGuide = null;
+          if (state.angleSnap) {
+            const prev = state.vertices[(edCtrl.dragIdx - 1 + state.vertices.length) % state.vertices.length];
+            const dx = nx - prev.x, dz = nz - prev.z;
+            const dist = Math.hypot(dx, dz);
+            if (dist > 0.5) {
+              const deg = Math.atan2(dz, dx) * 180 / Math.PI;
+              const snapStep = 15;
+              const snappedDeg = Math.round(deg / snapStep) * snapStep;
+              if (Math.abs(deg - snappedDeg) < 6) {
+                const rad = snappedDeg * Math.PI / 180;
+                nx = prev.x + Math.cos(rad) * dist;
+                nz = prev.z + Math.sin(rad) * dist;
+                edCtrl.snapGuide = { x1: prev.x, z1: prev.z, x2: nx, z2: nz, deg: snappedDeg };
+              }
+            }
+          }
+          if (state.gridSnap > 0) {
+            nx = Math.round(nx / state.gridSnap) * state.gridSnap;
+            nz = Math.round(nz / state.gridSnap) * state.gridSnap;
+          }
+          state.vertices[edCtrl.dragIdx].x = Number(nx.toFixed(2));
+          state.vertices[edCtrl.dragIdx].z = Number(Math.max(0, nz).toFixed(2));
+          syncOverallDimsFromPolygon();
+          updateAll();
+        } else if (edCtrl.dragMode === 'edge') {
+          let dx = w.x - edCtrl.dragStartWorld.x;
+          let dz = w.z - edCtrl.dragStartWorld.z;
+          if (state.gridSnap > 0) {
+            dx = Math.round(dx / state.gridSnap) * state.gridSnap;
+            dz = Math.round(dz / state.gridSnap) * state.gridSnap;
+          }
+          const i1 = edCtrl.dragIdx, i2 = (edCtrl.dragIdx + 1) % state.vertices.length;
+          state.vertices[i1].x = Number((edCtrl.dragOrigVerts[i1].x + dx).toFixed(2));
+          state.vertices[i1].z = Number(Math.max(0, edCtrl.dragOrigVerts[i1].z + dz).toFixed(2));
+          state.vertices[i2].x = Number((edCtrl.dragOrigVerts[i2].x + dx).toFixed(2));
+          state.vertices[i2].z = Number(Math.max(0, edCtrl.dragOrigVerts[i2].z + dz).toFixed(2));
+          syncOverallDimsFromPolygon();
+          updateAll();
+        }
+      });
+
+      window.addEventListener('mouseup', () => {
+        edCtrl.dragMode = null;
+        edCtrl.snapGuide = null;
+        renderPolygonEditor();
+      });
+
+      // Exact Length Apply
+      document.getElementById('btn-apply-len').addEventListener('click', () => {
+        const val = parseFloat(inpLen.value);
+        if (editingEdgeIdx >= 0 && val >= 2 && val <= 40) {
+          const i1 = editingEdgeIdx, i2 = (editingEdgeIdx + 1) % state.vertices.length;
+          const a = state.vertices[i1], b = state.vertices[i2];
+          const cur = Math.hypot(b.x - a.x, b.z - a.z);
+          if (cur > 0.01) {
+            state.vertices[i2].x = Number((a.x + ((b.x - a.x) / cur) * val).toFixed(2));
+            state.vertices[i2].z = Number(Math.max(0, a.z + ((b.z - a.z) / cur) * val).toFixed(2));
+            syncOverallDimsFromPolygon();
+            updateAll();
+          }
+        }
+        pop.classList.add('hidden');
+      });
+      document.getElementById('btn-cancel-len').addEventListener('click', () => pop.classList.add('hidden'));
+    }
+
+    /* =====================================================================
+     * 6. 2D CAD ARCHITECTURAL PERMIT BLUEPRINT GENERATOR
+     * ===================================================================== */
+    function renderBlueprint(model) {
+      const canvas = document.getElementById('blueprint-canvas');
+      if (!canvas || !model) return;
+      const W = 1400, H = 920;
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext('2d');
+      const dark = state.bpDark;
+
+      const bg = dark ? '#0a1428' : '#ffffff';
+      const ink = dark ? '#e2e8f0' : '#0f172a';
+      const accent = dark ? '#38bdf8' : '#0284c7';
+      const gold = dark ? '#fbbf24' : '#b45309';
+      const muted = dark ? '#64748b' : '#475569';
+      const gridC = dark ? 'rgba(56,189,248,0.08)' : 'rgba(15,23,42,0.06)';
+
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+
+      // Subtle CAD grid
+      ctx.strokeStyle = gridC;
+      ctx.lineWidth = 1;
+      for (let x = 24; x < W - 24; x += 24) { ctx.beginPath(); ctx.moveTo(x, 24); ctx.lineTo(x, H - 24); ctx.stroke(); }
+      for (let y = 24; y < H - 24; y += 24) { ctx.beginPath(); ctx.moveTo(24, y); ctx.lineTo(W - 24, y); ctx.stroke(); }
+
+      // Outer Architectural Border
+      ctx.strokeStyle = ink;
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(24, 24, W - 48, H - 48);
+
+      // Divider between Left Plan View and Right Elevation/Schedule
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(860, 24); ctx.lineTo(860, H - 24); ctx.stroke();
+
+      // --- PANEL A: FRAMING & HELICAL PILE PLAN (LEFT) ---
+      ctx.fillStyle = accent;
+      ctx.font = '700 15px "JetBrains Mono"';
+      ctx.fillText('A1.0 — STRUCTURAL FRAMING & HELICAL PILE PLAN', 46, 56);
+
+      const b = model.bounds;
+      const pScale = Math.min(620 / Math.max(10, b.width + 6), 620 / Math.max(10, b.depth + 8));
+      const ox = 440 - ((b.minX + b.maxX) / 2) * pScale;
+      const oy = 390 - ((b.minZ + b.maxZ) / 2) * pScale;
+      const toBP = (wx, wz) => ({ x: ox + wx * pScale, y: oy + wz * pScale });
+
+      // Joists
+      ctx.strokeStyle = muted;
+      ctx.lineWidth = 1;
+      model.joists.forEach(j => {
+        const p1 = toBP(j.x, j.z0), p2 = toBP(j.x, j.z1);
+        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+      });
+
+      // Drop Beams
+      ctx.strokeStyle = gold;
+      ctx.lineWidth = 4;
+      model.beams.forEach((bm, idx) => {
+        const p1 = toBP(bm.x0, bm.z), p2 = toBP(bm.x1, bm.z);
+        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+        ctx.fillStyle = gold;
+        ctx.font = '600 11px "JetBrains Mono"';
+        ctx.fillText(`${model.beamSize} DROP BEAM #${idx + 1}`, p1.x, p1.y - 8);
+      });
+
+      // Deck Perimeter
+      ctx.strokeStyle = ink;
+      ctx.lineWidth = 2.8;
+      ctx.beginPath();
+      model.verts.forEach((v, i) => {
+        const p = toBP(v.x, v.z);
+        if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+      });
+      ctx.closePath();
+      ctx.stroke();
+
+      // Edge Dimensions
+      ctx.font = '600 11px "JetBrains Mono"';
+      model.edges.forEach(e => {
+        const p1 = toBP(e.a.x, e.a.z), p2 = toBP(e.b.x, e.b.z);
+        const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+        ctx.fillStyle = e.meta.isLedger ? gold : accent;
+        ctx.fillText(`${formatFtIn(e.len)}${e.meta.isLedger ? ' LEDGER' : ''}`, mx - 28, my - 8);
+      });
+
+      // Helical Pile Callouts
+      model.piles.forEach(p => {
+        const pp = toBP(p.x, p.z);
+        ctx.strokeStyle = gold;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(pp.x, pp.y, 9, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = gold;
+        ctx.beginPath(); ctx.arc(pp.x, pp.y, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.font = '700 10px "JetBrains Mono"';
+        ctx.fillText(p.id, pp.x + 12, pp.y + 4);
+      });
+
+      // Framing Spec Callout Box
+      ctx.fillStyle = ink;
+      ctx.font = '600 12px "JetBrains Mono"';
+      ctx.fillText(`JOISTS: ${model.joistSize} PT #2 @ ${model.joistSpacingIn}" O.C.  |  AREA: ${Math.round(model.area)} SQ FT  |  SNOW LOAD: ${state.snowLoadPsf} PSF`, 46, H - 46);
+
+      // --- PANEL B: SIDE ELEVATION & FROST DEPTH (TOP RIGHT) ---
+      ctx.fillStyle = accent;
+      ctx.font = '700 14px "JetBrains Mono"';
+      ctx.fillText('A2.0 — SIDE ELEVATION & SUBSURFACE PILES', 882, 56);
+
+      const elGradeY = 270;
+      const elScale = 9.5;
+      // Grade line
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(884, elGradeY); ctx.lineTo(1355, elGradeY); ctx.stroke();
+      ctx.fillStyle = '#10b981';
+      ctx.font = '600 10px "JetBrains Mono"';
+      ctx.fillText('FINISH GRADE (0\'-0")', 1225, elGradeY - 6);
+
+      // Frost Line
+      const frostY = elGradeY + (state.frostDepthIn / 12) * elScale;
+      ctx.save();
+      ctx.setLineDash([6, 4]);
+      ctx.strokeStyle = accent;
+      ctx.beginPath(); ctx.moveTo(884, frostY); ctx.lineTo(1355, frostY); ctx.stroke();
+      ctx.restore();
+      ctx.fillStyle = accent;
+      ctx.fillText(`FROST LINE (-${state.frostDepthIn}")`, 1225, frostY - 6);
+
+      // Deck Elevation Profile
+      const deckY = elGradeY - state.height * elScale;
+      const houseX = 950;
+      const deckEndX = houseX + Math.min(260, model.bounds.depth * elScale);
+      // House wall
+      ctx.fillStyle = dark ? '#1e293b' : '#e2e8f0';
+      ctx.fillRect(890, deckY - 65, 60, elGradeY - (deckY - 65));
+      ctx.strokeStyle = ink;
+      ctx.strokeRect(890, deckY - 65, 60, elGradeY - (deckY - 65));
+      // Deck slab & railing
+      ctx.strokeStyle = ink;
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(houseX, deckY, deckEndX - houseX, 12);
+      if (state.railing !== 'none') {
+        ctx.strokeStyle = accent;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(houseX, deckY - 3 * elScale, deckEndX - houseX, 3 * elScale);
+      }
+      // Support Post + Helical Pile Embedment
+      const postX = deckEndX - 24;
+      ctx.strokeStyle = gold;
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(postX, deckY + 12); ctx.lineTo(postX, elGradeY); ctx.stroke();
+      const pileBotY = elGradeY + state.pileDepthFt * elScale;
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(postX, elGradeY); ctx.lineTo(postX, Math.min(415, pileBotY)); ctx.stroke();
+      ctx.fillStyle = gold;
+      ctx.fillRect(postX - 9, Math.min(408, pileBotY - 6), 18, 4);
+      ctx.fillStyle = ink;
+      ctx.font = '600 10px "JetBrains Mono"';
+      ctx.fillText(`ELEV: ${formatFtIn(state.height)}`, houseX + 12, deckY - 36);
+      ctx.fillText(`EMBED: ${formatFtIn(state.pileDepthFt)}`, postX + 14, Math.min(410, pileBotY - 12));
+
+      // --- PANEL C: HELICAL PILE SCHEDULE (MIDDLE RIGHT) ---
+      ctx.strokeStyle = ink;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(860, 440); ctx.lineTo(W - 24, 440); ctx.stroke();
+      ctx.fillStyle = gold;
+      ctx.font = '700 13px "JetBrains Mono"';
+      ctx.fillText(`HELICAL PILE SCHEDULE (${state.foundationType.toUpperCase()})`, 882, 468);
+
+      ctx.fillStyle = muted;
+      ctx.font = '600 10px "JetBrains Mono"';
+      ctx.fillText('ID      COORDS (X, Z)       LOAD (LBS)   TORQUE     EMBED', 882, 492);
+      model.piles.slice(0, 8).forEach((p, idx) => {
+        const y = 512 + idx * 19;
+        ctx.fillStyle = ink;
+        ctx.fillText(
+          `${p.id.padEnd(7)} (${p.x.toFixed(1)}', ${p.z.toFixed(1)}')`.padEnd(28) +
+          `${String(p.designLoadLbs).padEnd(13)}${p.estTorque} ft-lb  ${state.pileDepthFt.toFixed(1)}'`,
+          882, y
+        );
+      });
+
+      // --- PANEL D: CODE NOTES & TITLE BLOCK (BOTTOM RIGHT) ---
+      ctx.strokeStyle = ink;
+      ctx.beginPath(); ctx.moveTo(860, 680); ctx.lineTo(W - 24, 680); ctx.stroke();
+      ctx.fillStyle = accent;
+      ctx.font = '700 12px "JetBrains Mono"';
+      ctx.fillText('IRC / DCA6 GENERAL STRUCTURAL NOTES', 882, 704);
+      ctx.fillStyle = ink;
+      ctx.font = '400 10px "JetBrains Mono"';
+      const notes = [
+        `• Design Loads: ${state.snowLoadPsf} PSF Live/Snow + 12 PSF Dead Load.`,
+        `• Foundation: ${state.foundationType === 'helical' ? `Galv. ${state.pileShaft} Helical Piles (${state.pileHelix}) below ${state.frostDepthIn}" frost.` : `Concrete piers below ${state.frostDepthIn}" frost line.`}`,
+        `• Lateral Bracing: ${state.bracingStyle === 'xbrace' ? '4x6 Y-Knee Braces + Full Lateral X-Bracing.' : (state.bracingStyle === 'ybrace' ? 'Heavy 4x6 Mitered Y-Knee Braces + Simpson Post-Beam Caps.' : 'Standard ledger lateral connectors (DTT2Z).')}`,
+        `• Guardrails: 36" Min Height, <4" sphere opening, 200 lb concentrated load.`
+      ];
+      notes.forEach((n, i) => ctx.fillText(n, 882, 726 + i * 18));
+
+      // Title Block
+      ctx.strokeStyle = ink;
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(860, 812, W - 884, 84);
+      ctx.fillStyle = ink;
+      ctx.font = '700 15px "Inter"';
+      ctx.fillText(state.projName.toUpperCase(), 882, 840);
+      ctx.fillStyle = muted;
+      ctx.font = '500 11px "JetBrains Mono"';
+      ctx.fillText(state.projAddr.toUpperCase(), 882, 862);
+      ctx.fillStyle = accent;
+      ctx.fillText('SHEET S-1 OF 1  •  GENERATED BY DECKCRAFT PRO v2', 882, 882);
+    }
+
+    /* =====================================================================
+     * 7. MATERIALS TAKEOFF, CUT LIST & UI SYNC
+     * ===================================================================== */
+    function buildTakeoffItems(model) {
+      const waste = 1 + state.wasteFactor;
+      const items = [
+        { cat: 'Decking', name: `${model.mat.brand} — ${model.mat.name}`, spec: `1x5.5" Grooved Boards (${Math.round(model.area)} sf + ${Math.round(state.wasteFactor * 100)}% waste)`, qty: `${Math.ceil((model.area * waste) / 7.3)} pcs (16')`, cost: model.costs.deckingCost },
+        { cat: 'Framing', name: `${model.joistSize} PT #2 Joists @ ${model.joistSpacingIn}" O.C.`, spec: `${model.joists.length} joists — ${Math.round(model.totalJoistLF)} LF total`, qty: `${Math.ceil((model.totalJoistLF * waste) / 14)} pcs (14')`, cost: model.totalJoistLF * 3.4 * waste },
+        { cat: 'Framing', name: `${model.beamSize} PT #2 Drop Beams`, spec: `${model.beams.length} beam line(s) — ${Math.round(model.totalBeamLF)} LF plies`, qty: `${Math.ceil((model.totalBeamLF * waste) / 16)} pcs (16')`, cost: model.totalBeamLF * 5.2 * waste },
+        { cat: 'Framing', name: '6x6 PT #2 Support Posts', spec: `Cut to ${formatFtIn(state.height - 1.8)} under beam`, qty: `${model.piles.length} posts`, cost: model.piles.length * state.height * 4.5 },
+        { cat: 'Foundation', name: state.foundationType === 'helical' ? `Galvanized Helical Piles (${state.pileShaft})` : 'Concrete Footings / Piers', spec: state.foundationType === 'helical' ? `${state.pileHelix}, ${state.pileDepthFt}' embed, ${state.pileBracket}` : `${state.frostDepthIn}" frost depth`, qty: `${model.piles.length} ea`, cost: model.costs.foundationCost },
+        { cat: 'Railing', name: `${state.railing.toUpperCase()} Guardrail System`, spec: `36" IRC Height${state.drinkRail ? ' + Drink Rail' : ''}`, qty: `${Math.ceil(model.totalRailLF)} LF`, cost: model.costs.railCost }
+      ];
+      if (model.stairSpec) {
+        items.push({
+          cat: 'Stairs',
+          name: `2x12 PT Sawtooth Stringers & Treads (${state.stairWidthIn}" Wide)`,
+          spec: `${model.stairSpec.numRisers} risers @ ${model.stairSpec.actualRiseIn.toFixed(2)}" rise${model.stairSpec.useLanding ? ` + ${model.stairSpec.landingType.toUpperCase()} Mid-Landing` : ''}`,
+          qty: `${model.stairSpec.numStringers} stringers`,
+          cost: model.costs.stairCost
+        });
+      }
+      if (state.bracingStyle !== 'none' && state.height >= 4.5) {
+        items.push({
+          cat: 'Bracing',
+          name: state.bracingStyle === 'xbrace' ? '4x6 Mitered Y-Braces + 2x6 Lateral X-Bracing' : '4x6 Heavy Mitered Y-Knee Braces',
+          spec: '45° flush-mitered under drop beam w/ structural SDS screws',
+          qty: `${model.piles.length * 2} braces`,
+          cost: state.bracingStyle === 'xbrace' ? 540 : 320
+        });
+      }
+      const bracingCostDeduct = (state.height >= 5 ? (state.bracingStyle === 'xbrace' ? 540 : (state.bracingStyle === 'ybrace' ? 320 : 0)) : 0);
+      items.push({
+        cat: 'Hardware',
+        name: 'Simpson BCS Post-Beam Caps, Joist Hangers & Fasteners',
+        spec: `${model.piles.length}x galv. post-beam caps, LUS hangers, DTT2Z ties${state.ledLights ? ', 12V LED kit' : ''}`,
+        qty: '1 lot',
+        cost: model.costs.hardwareCost - bracingCostDeduct
+      });
+      return items;
+    }
+
+    function updateUI(model) {
+      // Header KPIs
+      document.getElementById('hdr-area').textContent = Math.round(model.area);
+      document.getElementById('hdr-piles').textContent = model.piles.length;
+      document.getElementById('hdr-cost').textContent = `$${model.costs.totalCost.toLocaleString()}`;
+
+      // Pile Schedule Mini-list
+      document.getElementById('pile-count-badge').textContent = `${model.piles.length} Piles`;
+      const pList = document.getElementById('pile-schedule-mini');
+      pList.innerHTML = model.piles.map(p => `
+        <div class="flex items-center justify-between px-2 py-1 rounded bg-surface-900 border border-slate-800/80">
+          <span class="text-amber-300 font-bold">${p.id}</span>
+          <span class="text-slate-400">(${p.x.toFixed(1)}', ${p.z.toFixed(1)}')</span>
+          <span class="text-cyan-300">${p.designLoadLbs} lb</span>
+        </div>
+      `).join('');
+
+      // Stair Code Card
+      const sCard = document.getElementById('stair-code-card');
+      if (model.stairSpec) {
+        const s = model.stairSpec;
+        const okRise = s.actualRiseIn <= 7.75;
+        sCard.innerHTML = `
+          <div class="flex justify-between"><span class="text-slate-400">Total Risers:</span><span class="text-white font-bold">${s.numRisers} risers</span></div>
+          <div class="flex justify-between"><span class="text-slate-400">Actual Rise:</span><span class="${okRise ? 'text-emerald-400' : 'text-rose-400'} font-bold">${s.actualRiseIn.toFixed(2)}" (Max 7.75")</span></div>
+          <div class="flex justify-between"><span class="text-slate-400">Tread Run:</span><span class="text-cyan-300">${s.treadRunIn}" (2-Board)</span></div>
+          <div class="flex justify-between"><span class="text-slate-400">2x12 Stringers:</span><span class="text-white">${s.numStringers} @ 12" O.C.</span></div>
+          <div class="flex justify-between"><span class="text-slate-400">Mid-Landing:</span><span class="text-amber-300">${s.useLanding ? `${s.landingType.toUpperCase()} @ ${formatFtIn(s.landingY)}` : 'None'}</span></div>
+        `;
+      } else {
+        sCard.innerHTML = `<div class="text-slate-500">Stairs disabled or no edge assigned.</div>`;
+      }
+
+      // Materials View KPIs & Table
+      document.getElementById('mat-kpi-row').innerHTML = `
+        <div class="bg-surface-900 border border-slate-800 rounded-2xl p-3.5"><div class="text-[11px] text-slate-400">Total Deck Area</div><div class="text-xl font-bold font-mono text-cyan-300 mt-1">${Math.round(model.area)} sq ft</div></div>
+        <div class="bg-surface-900 border border-slate-800 rounded-2xl p-3.5"><div class="text-[11px] text-slate-400">Design Load / Frost</div><div class="text-xl font-bold font-mono text-amber-300 mt-1">${state.snowLoadPsf} psf / ${state.frostDepthIn}"</div></div>
+        <div class="bg-surface-900 border border-slate-800 rounded-2xl p-3.5"><div class="text-[11px] text-slate-400">Helical Piles / Piers</div><div class="text-xl font-bold font-mono text-white mt-1">${model.piles.length} units</div></div>
+        <div class="bg-surface-900 border border-slate-800 rounded-2xl p-3.5"><div class="text-[11px] text-slate-400">Est. Material Cost</div><div class="text-xl font-bold font-mono text-emerald-400 mt-1">$${model.costs.totalCost.toLocaleString()}</div></div>
+      `;
+
+      const checks = [
+        { ok: state.pileDepthFt * 12 >= state.frostDepthIn, text: `Embedment (${formatFtIn(state.pileDepthFt)}) extends below ${state.frostDepthIn}" frost line` },
+        { ok: !model.stairSpec || model.stairSpec.actualRiseIn <= 7.75, text: `Stair riser height meets IRC R311.7.5 (≤ 7.75")` },
+        { ok: state.height < 6 || state.bracingStyle !== 'none', text: `High-elevation Y-bracing (${formatFtIn(state.height)}) configured` },
+        { ok: state.height <= 2.5 || state.railing !== 'none', text: `36" IRC Guardrails enabled for decks > 30" above grade` }
+      ];
+      document.getElementById('irc-checklist').innerHTML = checks.map(c => `
+        <div class="flex items-center gap-2 p-2 rounded-xl bg-surface-950/70 border border-slate-800">
+          <span class="text-sm">${c.ok ? '✅' : '⚠️'}</span>
+          <span class="${c.ok ? 'text-slate-200' : 'text-amber-300'}">${c.text}</span>
+        </div>
+      `).join('');
+
+      const items = buildTakeoffItems(model);
+      document.getElementById('mat-table-body').innerHTML = items.map(it => `
+        <tr class="hover:bg-surface-850/50">
+          <td class="py-2.5 px-3 font-mono text-cyan-300 font-semibold">${it.cat}</td>
+          <td class="py-2.5 px-3 text-slate-200 font-medium">${it.name}</td>
+          <td class="py-2.5 px-3 text-slate-400 font-mono text-[11px]">${it.spec}</td>
+          <td class="py-2.5 px-3 text-right font-mono text-white">${it.qty}</td>
+          <td class="py-2.5 px-3 text-right font-mono text-emerald-400">$${Math.round(it.cost).toLocaleString()}</td>
+        </tr>
+      `).join('');
+    }
+
+    function updateAll() {
+      currentModel = computeDeckModel(state);
+      rebuild3DScene(currentModel);
+      renderPolygonEditor();
+      renderBlueprint(currentModel);
+      updateUI(currentModel);
+    }
+
+    /* =====================================================================
+     * 8. VIEW SWITCHING & EVENT LISTENERS
+     * ===================================================================== */
+    function setView(v) {
+      state.view = v;
+      document.querySelectorAll('.view-tab').forEach(btn => {
+        const active = btn.dataset.view === v;
+        btn.className = `view-tab ${btn.dataset.view === 'split' ? 'hidden md:inline-flex' : ''} px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap ${active ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-400 hover:text-white border border-transparent'}`;
+      });
+      const v3 = document.getElementById('view-3d');
+      const vEd = document.getElementById('view-editor');
+      const vBp = document.getElementById('view-blueprint');
+      const vMat = document.getElementById('view-materials');
+
+      v3.classList.toggle('hidden', v !== '3d' && v !== 'split');
+      vEd.classList.toggle('hidden', v !== 'editor' && v !== 'split');
+      vBp.classList.toggle('hidden', v !== 'blueprint');
+      vBp.classList.toggle('flex', v === 'blueprint');
+      vMat.classList.toggle('hidden', v !== 'materials');
+      vMat.classList.toggle('flex', v === 'materials');
+
+      setTimeout(() => {
+        handleResize();
+        renderPolygonEditor();
+        if (v === 'blueprint') renderBlueprint(currentModel);
+      }, 30);
+    }
+
+    function handleResize() {
+      const container = document.getElementById('three-container');
+      if (renderer && camera && container && container.clientWidth > 0) {
+        camera.aspect = container.clientWidth / Math.max(1, container.clientHeight);
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+      }
+      renderPolygonEditor();
+    }
+
+    function bindEvents() {
+      window.addEventListener('resize', handleResize);
+
+      // Mobile Sidebar Toggle
+      document.getElementById('btn-toggle-sidebar').addEventListener('click', () => {
+        document.getElementById('sidebar').classList.toggle('-translate-x-full');
+      });
+
+      // Top View Switcher
+      document.querySelectorAll('.view-tab').forEach(btn => {
+        btn.addEventListener('click', () => setView(btn.dataset.view));
+      });
+
+      // Sidebar Tabs
+      document.querySelectorAll('.side-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.side-tab').forEach(b => {
+            const act = b === btn;
+            b.className = `side-tab py-1.5 rounded-lg text-[11px] font-semibold transition ${act ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-400 hover:text-white border border-transparent'}`;
+          });
+          document.querySelectorAll('.side-panel').forEach(p => p.classList.add('hidden'));
+          document.getElementById(`panel-${btn.dataset.tab}`).classList.remove('hidden');
+        });
+      });
+
+      // Climate Presets
+      document.getElementById('btn-climate-ak').addEventListener('click', () => {
+        state.snowLoadPsf = 80; state.frostDepthIn = 60; state.pileDepthFt = 9.0; state.foundationType = 'helical';
+        document.getElementById('rng-frost-depth').value = 60; document.getElementById('val-frost-depth').textContent = '60"';
+        document.getElementById('rng-pile-depth').value = 9; document.getElementById('val-pile-depth').textContent = `9'-0"`;
+        showToast('Applied Anchorage, AK Code (80 psf Snow, 60" Frost, Helical Piles)', 'success');
+        updateAll();
+      });
+      document.getElementById('btn-climate-std').addEventListener('click', () => {
+        state.snowLoadPsf = 40; state.frostDepthIn = 36; state.pileDepthFt = 6.0;
+        document.getElementById('rng-frost-depth').value = 36; document.getElementById('val-frost-depth').textContent = '36"';
+        document.getElementById('rng-pile-depth').value = 6; document.getElementById('val-pile-depth').textContent = `6'-0"`;
+        showToast('Applied Standard IRC Code (40 psf Live, 36" Frost)', 'info');
+        updateAll();
+      });
+
+      // Shape Presets
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.preset-btn').forEach(b => b.className = 'preset-btn py-2 px-2.5 rounded-xl bg-surface-850 hover:bg-surface-800 border border-slate-700 text-xs font-medium text-slate-200 transition');
+          btn.className = 'preset-btn py-2 px-2.5 rounded-xl bg-surface-850 hover:bg-surface-800 border border-cyan-500/40 text-xs font-semibold text-cyan-300 transition';
+          loadPreset(btn.dataset.preset);
+          updateAll();
+        });
+      });
+
+      document.getElementById('btn-open-editor-quick').addEventListener('click', () => setView(window.innerWidth >= 768 ? 'split' : 'editor'));
+
+      // Dimension & Height Sliders
+      document.getElementById('rng-width').addEventListener('input', e => {
+        const w = parseFloat(e.target.value);
+        const d = parseFloat(document.getElementById('rng-depth').value);
+        scalePolygonToOverall(w, d);
+        document.getElementById('val-width').textContent = formatFtIn(w);
+        updateAll();
+      });
+      document.getElementById('rng-depth').addEventListener('input', e => {
+        const w = parseFloat(document.getElementById('rng-width').value);
+        const d = parseFloat(e.target.value);
+        scalePolygonToOverall(w, d);
+        document.getElementById('val-depth').textContent = formatFtIn(d);
+        updateAll();
+      });
+      document.getElementById('rng-height').addEventListener('input', e => {
+        state.height = parseFloat(e.target.value);
+        document.getElementById('val-height').textContent = formatFtIn(state.height);
+        camCtrl.target.y = Math.max(2.5, state.height * 0.5);
+        updateCameraPos();
+        updateAll();
+      });
+
+      document.getElementById('sel-bracing').addEventListener('change', e => { state.bracingStyle = e.target.value; updateAll(); });
+      document.getElementById('chk-house').addEventListener('change', e => { state.houseBackdrop = e.target.checked; updateAll(); });
+
+      // Foundation & Piles Controls
+      document.querySelectorAll('.found-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.foundationType = btn.dataset.found;
+          document.querySelectorAll('.found-btn').forEach(b => b.className = 'found-btn py-2 px-1.5 rounded-xl border border-slate-700 bg-surface-850 text-[11px] font-medium text-slate-300 transition');
+          btn.className = 'found-btn py-2 px-1.5 rounded-xl border border-amber-500/50 bg-amber-500/15 text-[11px] font-semibold text-amber-300 transition';
+          updateAll();
+        });
+      });
+      document.getElementById('sel-pile-shaft').addEventListener('change', e => { state.pileShaft = e.target.value; updateAll(); });
+      document.getElementById('sel-pile-helix').addEventListener('change', e => { state.pileHelix = e.target.value; updateAll(); });
+      document.getElementById('rng-pile-depth').addEventListener('input', e => {
+        state.pileDepthFt = parseFloat(e.target.value);
+        document.getElementById('val-pile-depth').textContent = formatFtIn(state.pileDepthFt);
+        updateAll();
+      });
+      document.getElementById('rng-frost-depth').addEventListener('input', e => {
+        state.frostDepthIn = parseInt(e.target.value, 10);
+        document.getElementById('val-frost-depth').textContent = `${state.frostDepthIn}"`;
+        updateAll();
+      });
+
+      // X-Ray Subsurface Toggle
+      function toggleXray() {
+        state.xray = !state.xray;
+        const b = document.getElementById('btn-xray');
+        b.classList.toggle('bg-cyan-500/20', state.xray);
+        b.classList.toggle('text-cyan-300', state.xray);
+        b.classList.toggle('border-cyan-500/40', state.xray);
+        if (state.xray) {
+          camCtrl.phi = 1.32;
+          camCtrl.target.y = Math.min(3, state.height * 0.25);
+          updateCameraPos();
+        }
+        updateAll();
+      }
+      document.getElementById('btn-xray').addEventListener('click', toggleXray);
+      document.getElementById('btn-piles-xray').addEventListener('click', () => {
+        if (state.view !== '3d' && state.view !== 'split') setView('3d');
+        if (!state.xray) toggleXray();
+      });
+
+      // Material Swatches
+      const matGrid = document.getElementById('material-grid');
+      matGrid.innerHTML = MATERIALS.map(m => `
+        <button data-mat="${m.id}" class="mat-btn flex items-center gap-2.5 p-2 rounded-xl border ${m.id === state.materialId ? 'border-cyan-500/50 bg-cyan-500/10' : 'border-slate-800 bg-surface-850/70 hover:bg-surface-800'} transition text-left">
+          <span class="w-7 h-7 rounded-lg shrink-0 border border-white/15 shadow-inner" style="background:${m.color}"></span>
+          <div class="min-w-0 flex-1">
+            <div class="text-xs font-semibold text-slate-100 truncate">${m.name}</div>
+            <div class="text-[10px] text-slate-400 truncate">${m.brand} • $${m.priceSqFt}/sf</div>
+          </div>
+        </button>
+      `).join('');
+      document.querySelectorAll('.mat-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.materialId = btn.dataset.mat;
+          document.querySelectorAll('.mat-btn').forEach(b => b.className = 'mat-btn flex items-center gap-2.5 p-2 rounded-xl border border-slate-800 bg-surface-850/70 hover:bg-surface-800 transition text-left');
+          btn.className = 'mat-btn flex items-center gap-2.5 p-2 rounded-xl border border-cyan-500/50 bg-cyan-500/10 transition text-left';
+          updateAll();
+        });
+      });
+
+      // Railing & Lights
+      document.querySelectorAll('.rail-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.railing = btn.dataset.rail;
+          document.querySelectorAll('.rail-btn').forEach(b => b.className = 'rail-btn py-2 px-2 rounded-xl border border-slate-700 bg-surface-850 text-xs font-medium text-slate-300 transition');
+          btn.className = 'rail-btn py-2 px-2 rounded-xl border border-cyan-500/40 bg-cyan-500/15 text-xs font-semibold text-cyan-300 transition';
+          updateAll();
+        });
+      });
+      document.getElementById('chk-drinkrail').addEventListener('change', e => { state.drinkRail = e.target.checked; updateAll(); });
+      document.getElementById('chk-led').addEventListener('change', e => { state.ledLights = e.target.checked; updateAll(); });
+
+      // Stairs
+      document.getElementById('chk-stairs').addEventListener('change', e => { state.stairs = e.target.checked; updateAll(); });
+      document.getElementById('sel-stair-width').addEventListener('change', e => { state.stairWidthIn = parseInt(e.target.value, 10); updateAll(); });
+      document.getElementById('sel-stair-landing').addEventListener('change', e => { state.stairLanding = e.target.value; updateAll(); });
+
+      // 3D Camera & Lighting Presets
+      document.querySelectorAll('.cam-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const c = btn.dataset.cam;
+          if (c === 'iso') { camCtrl.theta = 0.62; camCtrl.phi = 1.08; camCtrl.radius = 34; camCtrl.target.set(0, state.height * 0.5, 7); }
+          if (c === 'front') { camCtrl.theta = 0; camCtrl.phi = 1.32; camCtrl.radius = 32; camCtrl.target.set(0, state.height * 0.5, 7); }
+          if (c === 'side') { camCtrl.theta = Math.PI / 2; camCtrl.phi = 1.32; camCtrl.radius = 34; camCtrl.target.set(0, state.height * 0.5, 7); }
+          if (c === 'under') { camCtrl.theta = 0.72; camCtrl.phi = 1.56; camCtrl.radius = 24; camCtrl.target.set(0, 2.2, 6); }
+          if (c === 'top') { camCtrl.theta = 0; camCtrl.phi = 0.18; camCtrl.radius = 36; camCtrl.target.set(0, 0, 7); }
+          updateCameraPos();
+        });
+      });
+      document.querySelectorAll('.light-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.lighting = btn.dataset.light;
+          document.querySelectorAll('.light-btn').forEach(b => b.className = 'light-btn px-2 py-1 rounded-lg text-[11px] font-medium text-slate-300 hover:bg-surface-800 transition');
+          btn.className = 'light-btn px-2 py-1 rounded-lg text-[11px] font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30 transition';
+          applyLighting3D();
+          updateAll();
+        });
+      });
+
+      // 2D Editor Edge Role Buttons
+      document.getElementById('ed-btn-ledger').addEventListener('click', () => {
+        const m = state.edgeMeta[state.selectedEdge];
+        m.isLedger = !m.isLedger;
+        if (m.isLedger) { m.railing = false; m.hasStairs = false; }
+        updateAll();
+      });
+      document.getElementById('ed-btn-rail').addEventListener('click', () => {
+        const m = state.edgeMeta[state.selectedEdge];
+        if (!m.isLedger) m.railing = !m.railing;
+        updateAll();
+      });
+      document.getElementById('ed-btn-stairs').addEventListener('click', () => {
+        state.edgeMeta.forEach((m, idx) => { m.hasStairs = (idx === state.selectedEdge && !m.isLedger); });
+        state.stairs = true;
+        document.getElementById('chk-stairs').checked = true;
+        updateAll();
+      });
+      document.getElementById('ed-btn-del-vert').addEventListener('click', () => {
+        if (state.vertices.length <= 3) { showToast('Minimum 3 corners required.', 'warn'); return; }
+        state.vertices.splice(state.selectedVertex, 1);
+        state.edgeMeta.splice(state.selectedVertex, 1);
+        state.selectedVertex = 0; state.selectedEdge = 0;
+        updateAll();
+      });
+
+      // 1-Click Rail All Open Edges
+      document.getElementById('ed-btn-rail-all').addEventListener('click', () => {
+        state.edgeMeta.forEach(m => { if (!m.isLedger) m.railing = true; });
+        if (state.railing === 'none') state.railing = 'cable';
+        showToast('Enabled railing on all open deck edges!', 'success');
+        updateAll();
+      });
+
+      // 2D Editor Layer Switcher (Shape & Rails vs Beams & Piles)
+      function setEditorLayer(layer) {
+        state.editLayer = layer;
+        const isPiles = layer === 'piles';
+        document.getElementById('ed-mode-shape').className = `px-2 py-0.5 rounded text-[10px] font-semibold transition ${!isPiles ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-400 hover:text-cyan-300'}`;
+        document.getElementById('ed-mode-piles').className = `px-2 py-0.5 rounded text-[10px] font-semibold transition ${isPiles ? 'bg-amber-500/20 text-amber-300' : 'text-slate-400 hover:text-amber-300'}`;
+        document.getElementById('ed-bar-shape-tools').classList.toggle('hidden', isPiles);
+        document.getElementById('ed-bar-pile-tools').classList.toggle('hidden', !isPiles);
+        document.getElementById('ed-hint-bar').innerHTML = isPiles
+          ? '<span>Drag gold <strong class="text-amber-300">beam lines</strong> or <strong class="text-amber-300">pile dots</strong></span><span>•</span><span>Right-click pile to delete</span>'
+          : '<span>Drag corners/edges</span><span>•</span><span>Click <span class="text-cyan-300 font-mono">+</span> to split</span><span>•</span><span>Click dimension to type exact length</span>';
+        renderPolygonEditor();
+      }
+      document.getElementById('ed-mode-shape').addEventListener('click', () => setEditorLayer('shape'));
+      document.getElementById('ed-mode-piles').addEventListener('click', () => setEditorLayer('piles'));
+
+      document.getElementById('btn-edit-piles-2d').addEventListener('click', () => {
+        setView(window.innerWidth >= 768 ? 'split' : 'editor');
+        setEditorLayer('piles');
+        showToast('Drag gold beams or pile dots to customize foundation layout!', 'info');
+      });
+
+      function resetAutoPiles() {
+        state.customBeamZs = null;
+        state.customPiles = null;
+        showToast('Restored auto-engineered beam & helical pile layout.', 'success');
+        updateAll();
+      }
+      document.getElementById('btn-reset-piles').addEventListener('click', resetAutoPiles);
+      document.getElementById('ed-btn-reset-piles').addEventListener('click', resetAutoPiles);
+      document.getElementById('ed-btn-add-pile').addEventListener('click', () => {
+        if (!currentModel) return;
+        if (!Array.isArray(state.customPiles)) {
+          state.customPiles = currentModel.piles.map(x => ({ x: x.x, z: x.z, beamRow: x.beamRow }));
+        }
+        const bm = currentModel.beams[0];
+        const cx = bm ? (bm.x0 + bm.x1) / 2 : 0;
+        const cz = bm ? bm.z : (currentModel.bounds.minZ + currentModel.bounds.maxZ) / 2;
+        state.customPiles.push({ x: Number(cx.toFixed(2)), z: Number(cz.toFixed(2)), beamRow: bm ? bm.row : 0 });
+        showToast('Added helical pile! Drag it to position.', 'success');
+        updateAll();
+      });
+
+      // Editor Snap Controls
+      document.getElementById('chk-angle-snap').addEventListener('change', e => { state.angleSnap = e.target.checked; });
+      document.getElementById('sel-grid-snap').addEventListener('change', e => { state.gridSnap = parseFloat(e.target.value); });
+
+      // Blueprint & Exports
+      document.getElementById('inp-proj-name').addEventListener('input', e => { state.projName = e.target.value; renderBlueprint(currentModel); });
+      document.getElementById('inp-proj-addr').addEventListener('input', e => { state.projAddr = e.target.value; renderBlueprint(currentModel); });
+      document.getElementById('btn-bp-theme').addEventListener('click', () => { state.bpDark = !state.bpDark; renderBlueprint(currentModel); });
+
+      function printPermitPDF() {
+        setView('blueprint');
+        const wasDark = state.bpDark;
+        state.bpDark = false;
+        renderBlueprint(currentModel);
+        setTimeout(() => {
+          window.print();
+          state.bpDark = wasDark;
+          renderBlueprint(currentModel);
+        }, 120);
+      }
+      document.getElementById('btn-export-pdf').addEventListener('click', printPermitPDF);
+      document.getElementById('btn-bp-print').addEventListener('click', printPermitPDF);
+
+      document.getElementById('btn-snap-png').addEventListener('click', () => {
+        const a = document.createElement('a');
+        a.download = 'deckcraft-3d-snapshot.png';
+        a.href = renderer.domElement.toDataURL('image/png');
+        a.click();
+        showToast('Saved 3D PNG Snapshot!', 'success');
+      });
+
+      document.querySelectorAll('.waste-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.wasteFactor = parseFloat(btn.dataset.waste);
+          document.querySelectorAll('.waste-btn').forEach(b => b.className = 'waste-btn px-2 py-1 rounded-lg text-slate-400');
+          btn.className = 'waste-btn px-2 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 font-semibold';
+          updateAll();
+        });
+      });
+
+      document.getElementById('btn-export-csv').addEventListener('click', () => {
+        const items = buildTakeoffItems(currentModel);
+        const rows = [['Category', 'Material', 'Spec', 'Qty', 'Est Cost']];
+        items.forEach(i => rows.push([i.cat, i.name, i.spec, i.qty, Math.round(i.cost)]));
+        const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'deckcraft-materials-cutlist.csv';
+        a.click();
+        showToast('Exported Materials & Cut List CSV!', 'success');
+      });
+
+      document.getElementById('btn-save-json').addEventListener('click', () => {
+        const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'deckcraft-project.json';
+        a.click();
+        showToast('Project saved as JSON!', 'success');
+      });
+
+      document.getElementById('inp-load-json').addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+          try {
+            const loaded = JSON.parse(ev.target.result);
+            Object.assign(state, loaded);
+            syncOverallDimsFromPolygon();
+            applyLighting3D();
+            updateAll();
+            showToast('Loaded deck project!', 'success');
+          } catch (err) {
+            showToast('Invalid project JSON file.', 'warn');
+          }
+        };
+        reader.readAsText(file);
+      });
+    }
+
+    /* =====================================================================
+     * 9. SAFE STARTUP LOADER
+     * ===================================================================== */
+    function bootDeckCraft() {
+      try {
+        loadPreset('octagon');
+        initThreeJS();
+        initPolygonEditorEvents();
+        bindEvents();
+        applyLighting3D();
+        updateAll();
+        animate3D();
+      } catch (err) {
+        console.error('DeckCraft Pro startup error:', err);
+      }
+    }
+
+    if (document.readyState === 'complete') {
+      bootDeckCraft();
+    } else {
+      window.addEventListener('load', bootDeckCraft);
+    }
+  </script>
+</body>
+</html>
